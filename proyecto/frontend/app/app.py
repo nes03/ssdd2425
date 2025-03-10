@@ -1,5 +1,6 @@
-from flask import Flask, render_template, send_from_directory, url_for, request, redirect
+from flask import Flask, render_template, send_from_directory, url_for, request, redirect, flash
 from flask_login import LoginManager, login_manager, current_user, login_user, login_required, logout_user
+from forms import LoginForm, SignUpForm
 import requests
 import os
 
@@ -9,8 +10,8 @@ from models import users, User
 # Login
 from forms import LoginForm
 
-app = Flask(__name__, static_url_path='')
-login_manager = LoginManager()
+app = Flask(__name__, static_url_path='') # Inicializar Flask
+login_manager = LoginManager() # Configurar Flask-Login para gestionar sesiones de usuario
 login_manager.init_app(app) # Para mantener la sesión
 
 # Configurar el secret_key. OJO, no debe ir en un servidor git público.
@@ -26,30 +27,70 @@ def serve_static(path):
 def index():
     return render_template('index.html')
 
+
+#Ruta para gestionar Registro de nuevos usuarios
+@app.route('/signup', methods=['GET', 'POST'])
+def register():
+    form = SignUpForm(request.form if request.method == 'POST' else None)
+    if request.method == "POST" and form.validate():
+        # Enviar los datos del formulario al backend para registrar nuevo usuario
+        response = requests.post("http://backend-server/register", json={
+            "name": form.name.data,
+            "email": form.email.data,
+            "password": form.password.data
+        })
+        if response.status_code == 201:
+            flash("¡Registro completado! Puedes inciar sesión.", "success") # Mensaje temporal
+            return redirect(url_for('login'))
+        else:
+            flash("Registro no completado. Por favor, pruebe de nuevo.", "danger") # Mensaje temporal
+    return render_template('signup.html', form=form)
+
+#Ruta para gestionar Login de usuarios registrados
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    else:
-        error = None
-        form = LoginForm(None if request.method != 'POST' else request.form)
-        if request.method == "POST" and form.validate():
-            if form.email.data != 'admin@um.es' or form.password.data != 'admin':
-                error = 'Invalid Credentials. Please try again.'
-            else:
-                user = User(1, 'admin', form.email.data.encode('utf-8'),
-                            form.password.data.encode('utf-8'))
-                users.append(user)
-                login_user(user, remember=form.remember_me.data)
-                return redirect(url_for('index'))
+    error = None
+    form = LoginForm(None if request.method != 'POST' else request.form)
+    if request.method == "POST" and form.validate():
+        response = requests.post("http://backend-server/login", json={
+            "email": form.email.data,
+            "password": form.password.data
+        })
+        if response.status_code == 200:
+            user_data = response.json()
+            user = User(user_data["id"], user_data["name"], form.email.data, form.password.data)
+            login_user(user, remember=form.remember_me.data)
+            return redirect(url_for('index'))
+        else:
+            error = 'Credenciales no válidas. Por favor, pruebe de nuevo.'
+    return render_template('login.html', form=form, error=error)
 
-        return render_template('login.html', form=form,  error=error)
+#def login():
+#    if current_user.is_authenticated:
+#        return redirect(url_for('index'))
+#    else:
+#       error = None
+#        form = LoginForm(None if request.method != 'POST' else request.form)
+#        if request.method == "POST" and form.validate():
+#            if form.email.data != 'admin@um.es' or form.password.data != 'admin':
+#                error = 'Invalid Credentials. Please try again.'
+#            else:
+#                user = User(1, 'admin', form.email.data.encode('utf-8'),
+#                            form.password.data.encode('utf-8'))
+#                users.append(user)
+#                login_user(user, remember=form.remember_me.data)
+#                return redirect(url_for('index'))
+
+#        return render_template('login.html', form=form,  error=error)
 
 @app.route('/profile')
 @login_required
 def profile():
     return render_template('profile.html')
 
+# Ruta para cerrar sesión y redigir a index
 @app.route('/logout')
 @login_required
 def logout():

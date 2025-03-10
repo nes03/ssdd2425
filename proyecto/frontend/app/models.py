@@ -26,3 +26,6 @@ class User(UserMixin):
 
     def __repr__(self):
         return '<User {}>'.format(self.email)
+
+
+#UserMixin es una clase de Flask_Login que proporciona metodos para manejar usuarios en la autenticación. 
