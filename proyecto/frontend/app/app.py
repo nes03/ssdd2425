@@ -18,6 +18,7 @@ login_manager.init_app(app) # Para mantener la sesión
 # Python ofrece varias formas de almacenar esto de forma segura, que
 # no cubriremos aquí.
 app.config['SECRET_KEY'] = 'qH1vprMjavek52cv7Lmfe1FoCexrrV8egFnB21jHhkuOHm8hJUe1hwn7pKEZQ1fioUzDb3sWcNK1pJVVIhyrgvFiIrceXpKJBFIn_i9-LTLBCc4cqaI3gjJJHU6kxuT8bnC7Ng'
+BACKEND_URL = 'http://localhost:5000'
 
 @app.route('/static/<path:path>')
 def serve_static(path):
@@ -30,11 +31,12 @@ def index():
 
 #Ruta para gestionar Registro de nuevos usuarios
 @app.route('/signup', methods=['GET', 'POST'])
-def register():
+def signup():
     form = SignUpForm(request.form if request.method == 'POST' else None)
     if request.method == "POST" and form.validate():
         # Enviar los datos del formulario al backend para registrar nuevo usuario
-        response = requests.post("http://backend-server/register", json={
+        #response = requests.post(f'{BACKEND_URL}/api/signup', json={
+        response = requests.post(f'http://localhost:5010/api/signup', json={
             "name": form.name.data,
             "email": form.email.data,
             "password": form.password.data
@@ -43,7 +45,7 @@ def register():
             flash("¡Registro completado! Puedes inciar sesión.", "success") # Mensaje temporal
             return redirect(url_for('login'))
         else:
-            flash("Registro no completado. Por favor, pruebe de nuevo.", "danger") # Mensaje temporal
+            flash("Registro no completado. Pruebe de nuevo. Status Code: {response.status_code}. Mensaje: {response.text}", "danger") # Mensaje temporal
     return render_template('signup.html', form=form)
 
 #Ruta para gestionar Login de usuarios registrados
@@ -54,7 +56,8 @@ def login():
     error = None
     form = LoginForm(None if request.method != 'POST' else request.form)
     if request.method == "POST" and form.validate():
-        response = requests.post("http://backend-server/login", json={
+        #response = requests.post(f'{BACKEND_URL}/api/login', json={
+        response = requests.post(f'http://localhost:5010/api/login', json={
             "email": form.email.data,
             "password": form.password.data
         })
@@ -88,6 +91,11 @@ def login():
 @app.route('/profile')
 @login_required
 def profile():
+    response = requests.get(f'{BACKEND_URL}/api/user/{current_user.id}')
+    if response.status_code == 200:
+        response.json()
+    else:
+        flash('Error al obtener los datos del perfil.', 'danger')
     return render_template('profile.html')
 
 # Ruta para cerrar sesión y redigir a index

@@ -4,8 +4,9 @@
   <artifactId>grpc-test1</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <properties>
-    <maven.compiler.source>11</maven.compiler.source>
-    <maven.compiler.target>11</maven.compiler.target>
+    <!--<maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>-->
+    <maven.compiler.release>17</maven.compiler.release>
     <maven.compiler.encoding>UTF-8</maven.compiler.encoding>
     <mainClass>es.um.sisdist.helloworld.HelloWorldServer</mainClass>
     <exec.mainClass>${mainClass}</exec.mainClass>
@@ -29,7 +30,7 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>3.25.2</version>
+      <version>4.30.0</version>
     </dependency>
     <dependency>
       <groupId>javax.annotation</groupId>
