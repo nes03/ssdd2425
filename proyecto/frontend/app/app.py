@@ -56,8 +56,8 @@ def login():
     error = None
     form = LoginForm(None if request.method != 'POST' else request.form)
     if request.method == "POST" and form.validate():
-        #response = requests.post(f'{BACKEND_URL}/api/login', json={
-        response = requests.post(f'http://localhost:5010/api/login', json={
+        #response = requests.post(f'{BACKEND_URL}/checkLogin', json={
+        response = requests.post(f'http://localhost:5010/checkLogin', json={
             "email": form.email.data,
             "password": form.password.data
         })
