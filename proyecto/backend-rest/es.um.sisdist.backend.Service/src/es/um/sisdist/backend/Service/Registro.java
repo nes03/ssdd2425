@@ -23,9 +23,8 @@ public class Registro
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response registerUser(String email, String password, String name){
-        // Crear el objeto UserDTO correctamente
         UserDTO user = new UserDTO(email, email, password, name, "prueba", 0);
-        return Response.ok(user).build();
+        return Response.ok(UserDTOUtils.fromDTO(user)).build();
     }
 }
 
