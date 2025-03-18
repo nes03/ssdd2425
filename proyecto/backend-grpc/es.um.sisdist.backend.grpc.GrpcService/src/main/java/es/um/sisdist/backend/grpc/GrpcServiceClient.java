@@ -31,10 +31,12 @@
 
 package es.um.sisdist.backend.grpc;
 
-/*
+
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.StatusRuntimeException;
+//import io.grpc.StatusRuntimeException;
+//import io.grpc.stub.StreamObserver;
+//import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 
 import java.util.concurrent.CountDownLatch;
@@ -42,20 +44,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
-*/
+//import com.google.protobuf.ByteString;
+//import com.google.protobuf.Empty;
+
 
 /**
  * A simple client that requests a greeting from the {@link CollageServer}.
  */
 public class GrpcServiceClient 
 {
-	/*
+
   private static final Logger logger = Logger.getLogger(GrpcServiceClient.class.getName());
 
   private final ManagedChannel channel;
-  private final GrpcServiceGrpc.GrpcServiceBlockingStub blockingStub;
+  //private final GrpcServiceGrpc.GrpcServiceBlockingStub blockingStub;
   private final GrpcServiceGrpc.GrpcServiceStub asyncStub;
   
   // Construct client connecting to HelloWorld server at {@code host:port}. 
@@ -66,14 +68,74 @@ public class GrpcServiceClient
         // needing certificates.
         .usePlaintext()
         .build();
-    blockingStub = GrpcServiceGrpc.newBlockingStub(channel);
-    asyncStub = GrpcServiceGrpc.newStub(channel);
+    //blockingStub = GrpcServiceGrpc.newBlockingStub(channel);
+    asyncStub = GrpcServiceGrpc.newStub(channel); // Crear stub para llamadas asíncronas
   }
 
   public void shutdown() throws InterruptedException {
     channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
   }
-  
+
+  public void sendPrompt(String prompt) {
+	logger.info("Enviando prompt asíncrono al servidor gRPC: " + prompt);
+
+	// Latch para esperar la respuesta asíncrona
+	CountDownLatch latch = new CountDownLatch(1);
+
+	// Construir la solicitud
+	PromptRequest request = PromptRequest.newBuilder().setPrompt(prompt).build();
+
+	// Llamada asíncrona al servicio gRPC
+	asyncStub.sendPrompt(request, new StreamObserver<PromptResponse>() {
+		@Override
+		public void onNext(PromptResponse response) {
+			logger.info("Respuesta recibida: " + response.getAnswer());
+		}
+
+		@Override
+		public void onError(Throwable t) {
+			logger.log(Level.SEVERE, "Error en la comunicación con gRPC", t);
+			latch.countDown();
+		}
+
+		@Override
+		public void onCompleted() {
+			logger.info("Finalizada la comunicación con el servidor gRPC.");
+			latch.countDown();
+		}
+	});
+
+	}
+
+
+	private void checkResponse(String url) {
+		ResponseRequest request = ResponseRequest.newBuilder().setUrl(url).build();
+		asyncStub.getResponse(request, new StreamObserver<ResponseResponse>() {
+			@Override
+			public void onNext(ResponseResponse response) {
+				if (response.getCompleted()) {
+					logger.info("Respuesta recibida: " + response.getAnswer());
+				} else {
+					logger.info("Respuesta aún no lista, volviendo a intentar...");
+					try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+					checkResponse(url);
+				}
+			}
+
+			@Override
+			public void onError(Throwable t) {}
+
+			@Override
+			public void onCompleted() {}
+		});
+	}
+
+	public static void main(String[] args) {
+        GrpcServiceClient  client = new GrpcServiceClient ("localhost", 50051);
+        client.sendPrompt("¿Qué es la inteligencia artificial?");
+    }
+
+  /* 
   // Send images. 
   public void sendImagesAndGetCollage()
   {

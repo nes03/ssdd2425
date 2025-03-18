@@ -8,6 +8,8 @@ package es.um.sisdist.backend.grpc;
 service GrpcService
 {
     rpc Ping(PingRequest) returns (PingResponse);
+	rpc SendPrompt(PromptRequest) returns (PromptResponse);
+	rpc GetResponse(ResponseRequest) returns (ResponseResponse);
 }
 
 message PingRequest
@@ -18,4 +20,27 @@ message PingRequest
 message PingResponse
 {
 	int32 v = 1;
+}
+
+//Almacena el prompt enviado por el usuario
+message PromptRequest
+{
+	string prompt = 1;
+}
+
+//Almacena la respuesta generada por el servicio LLamaChat
+message PromptResponse
+{
+	string prompt = 1;
+	string answer = 2;
+}
+
+message ResponseRequest {
+    string url = 1;
+}
+
+message ResponseResponse {
+    string prompt = 1;
+    string answer = 2;
+    bool completed = 3;
 }
