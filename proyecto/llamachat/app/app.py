@@ -74,7 +74,9 @@ def init_model_and_process_requests():
             the_llm.prompt_map_lock.release()
 
             # Generate a response
+            print(f"Generando respuesta para el token {token}...")
             prompt['answer'] = the_llm.llm(token, prompt['prompt'].strip())
+            print(f"Respuesta generada para el token {token}.")
 
 Thread(target=init_model_and_process_requests).start()
 
@@ -103,6 +105,7 @@ app.config['SECRET_KEY'] = 'abcdefghijklmnopqrstuvwxyz0123456789'
 def index():
     return redirect(url_for('prompt'))
 
+# Recibe una solicitud, genera un token y lo pone en la cola.
 @app.route('/prompt', methods=['GET', 'POST'])
 def prompt():
     if request.method == "POST":
@@ -118,6 +121,7 @@ def prompt():
     else:
         return "🦙chat v 1.0! Use POST to ask for a prompt."
 
+# Devuelve la respuesta cuando está lista
 @app.route('/response/<token>', methods=['GET'])
 def resp(token):
     if not the_llm.llm_set:
@@ -128,9 +132,11 @@ def resp(token):
     if not res:
         return Response('Token unknown.\n', http.HTTPStatus.NOT_FOUND)
     if not res.get('answer', None):
+        print(f"Respuesta aún en proceso para el token {token}.")
         return Response('Response still being generated.\n',
                         http.HTTPStatus.PROCESSING)
     else:
+        print(f"Respuesta generada para el token {token}.")
         return jsonify(res)
 
 @app.route('/healthcheck', methods=['GET'])
@@ -141,6 +147,6 @@ def healthcheck():
 
 if __name__ == '__main__':
     # Start the download of the model, if needed
-    Thread(target=init_model_and_process_requests).start()
+    Thread(target=init_model_and_process_requests).start() # Gestiona la cola de respuestas
 
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5020)))

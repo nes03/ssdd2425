@@ -40,6 +40,8 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -51,8 +53,7 @@ import java.util.logging.Logger;
 /**
  * A simple client that requests a greeting from the {@link CollageServer}.
  */
-public class GrpcServiceClient 
-{
+public class GrpcServiceClient {
 
   private static final Logger logger = Logger.getLogger(GrpcServiceClient.class.getName());
 
@@ -60,9 +61,11 @@ public class GrpcServiceClient
   //private final GrpcServiceGrpc.GrpcServiceBlockingStub blockingStub;
   private final GrpcServiceGrpc.GrpcServiceStub asyncStub;
   
+  private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+
   // Construct client connecting to HelloWorld server at {@code host:port}. 
-  public GrpcServiceClient(String host, int port) 
-  {
+  public GrpcServiceClient(String host, int port) {
     channel = ManagedChannelBuilder.forAddress(host, port)
         // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
         // needing certificates.
@@ -76,64 +79,82 @@ public class GrpcServiceClient
     channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
   }
 
-  public void sendPrompt(String prompt) {
-	logger.info("Enviando prompt asíncrono al servidor gRPC: " + prompt);
+  public void sendPromptAndFetchResponse(String prompt) {
+    CountDownLatch latch = new CountDownLatch(1);
+	System.out.println("Cliente envia el prompt" );
+    // 1. Enviar el prompt y recibir el token de ese prompt
+    asyncStub.sendPrompt(PromptRequest.newBuilder().setPrompt(prompt).build(),
+        new StreamObserver<PromptResponse>() {
+			
+            @Override
+            public void onNext(PromptResponse response) {
+                String token = response.getToken();
+                System.out.println("CLiente recibe el Token de su prompt: " + token);
 
-	// Latch para esperar la respuesta asíncrona
-	CountDownLatch latch = new CountDownLatch(1);
+                // 2. Llamar a fetchResponse para obtener la respuesta
+                fetchResponse(token, latch);
+            }
 
-	// Construir la solicitud
-	PromptRequest request = PromptRequest.newBuilder().setPrompt(prompt).build();
+            @Override
+            public void onCompleted() {
+                System.out.println("Prompt enviado correctamente.");
+            }
 
-	// Llamada asíncrona al servicio gRPC
-	asyncStub.sendPrompt(request, new StreamObserver<PromptResponse>() {
-		@Override
-		public void onNext(PromptResponse response) {
-			logger.info("Respuesta recibida: " + response.getAnswer());
-		}
+            @Override
+            public void onError(Throwable t) {
+                System.err.println("Error en sendPrompt opopopp: " + t.getMessage());
+                latch.countDown(); // Asegúrate de contar hacia abajo el latch si ocurre un error
+            }
+        });
 
-		@Override
-		public void onError(Throwable t) {
-			logger.log(Level.SEVERE, "Error en la comunicación con gRPC", t);
-			latch.countDown();
-		}
-
-		@Override
-		public void onCompleted() {
-			logger.info("Finalizada la comunicación con el servidor gRPC.");
-			latch.countDown();
-		}
-	});
-
-	}
-
-
-	private void checkResponse(String url) {
-		ResponseRequest request = ResponseRequest.newBuilder().setUrl(url).build();
-		asyncStub.getResponse(request, new StreamObserver<ResponseResponse>() {
-			@Override
-			public void onNext(ResponseResponse response) {
-				if (response.getCompleted()) {
-					logger.info("Respuesta recibida: " + response.getAnswer());
-				} else {
-					logger.info("Respuesta aún no lista, volviendo a intentar...");
-					try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
-					checkResponse(url);
-				}
-			}
-
-			@Override
-			public void onError(Throwable t) {}
-
-			@Override
-			public void onCompleted() {}
-		});
-	}
-
-	public static void main(String[] args) {
-        GrpcServiceClient  client = new GrpcServiceClient ("localhost", 50051);
-        client.sendPrompt("¿Qué es la inteligencia artificial?");
+    try {
+        latch.await(); // Esperar a que termine la respuesta
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
     }
+}
+
+  private void fetchResponse(String token, CountDownLatch latch) {
+    System.out.println("Cliente quiere consultar el estado del Token: " + token);
+	asyncStub.getResponse(ResponseRequest.newBuilder().setToken(token).build(),
+            new StreamObserver<ResponseResponse>() {
+
+                @Override
+                public void onNext(ResponseResponse response) {
+                    if ("completed".equals(response.getStatus())) {
+                        System.out.println("Respuesta recibida: " + response.getAnswer());
+                        latch.countDown();  // Solo se cuenta hacia abajo una vez
+                    } else if ("processing".equals(response.getStatus())) {
+                        System.out.println("Esperando respuesta...");
+                        try {
+                            Thread.sleep(2000); // Esperar
+                            fetchResponse(token, latch); // Reintentar la solicitud
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    System.err.println("Error en getResponse: " + t.getMessage());
+                    latch.countDown();  // Asegúrate de contar hacia abajo si ocurre un error
+                }
+
+                @Override
+                public void onCompleted() {
+                    System.out.println("Finalizada la obtención de respuesta.");
+                }
+            });
+  }
+
+  public static void main(String[] args) throws InterruptedException {
+	GrpcServiceClient client = new GrpcServiceClient("localhost", 50051);
+	client.sendPromptAndFetchResponse("¿Cuál es la capital de Francia?");
+	client.shutdown();
+  }
+
+}
 
   /* 
   // Send images. 
@@ -208,4 +229,4 @@ public class GrpcServiceClient
     }
   }
   */
-}
+

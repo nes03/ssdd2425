@@ -1,18 +1,12 @@
 package es.um.sisdist.backend.grpc.impl;
 
-import org.bson.json.JsonObject;
-import org.bson.Document;
-
-import com.mysql.cj.xdevapi.JsonParser;
-
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-//import java.nio.charset.StandardCharsets;
-import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import es.um.sisdist.backend.grpc.GrpcServiceGrpc;
 import es.um.sisdist.backend.grpc.PingRequest;
@@ -22,157 +16,244 @@ import es.um.sisdist.backend.grpc.PromptResponse;
 import es.um.sisdist.backend.grpc.ResponseRequest;
 import es.um.sisdist.backend.grpc.ResponseResponse;
 import io.grpc.stub.StreamObserver;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
-class GrpcServiceImpl extends GrpcServiceGrpc.GrpcServiceImplBase 
-{
-	private Logger logger;
-	
-    public GrpcServiceImpl(Logger logger) 
-    {
-		super();
-		this.logger = logger;
-	}
+class GrpcServiceImpl extends GrpcServiceGrpc.GrpcServiceImplBase {
+    private Logger logger;
 
-	@Override
-	public void ping(PingRequest request, StreamObserver<PingResponse> responseObserver) 
-	{
-		logger.info("Recived PING request, value = " + request.getV());
-		responseObserver.onNext(PingResponse.newBuilder().setV(request.getV()).build());
-		responseObserver.onCompleted();
-	}
+    private final OkHttpClient httpClient = new OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .build();
 
-	@Override
-    public void sendPrompt(PromptRequest request, StreamObserver<PromptResponse> responseObserver) {
-        String prompt = request.getPrompt();
-        logger.info("Enviando prompt al servicio REST: " + prompt);
-
-        try {
-            // Hacer una petición POST al servicio REST en /prompt
-            URL url = new URL("http://localhost:5020/prompt");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setDoOutput(true);
-
-            // Crear el JSON con MongoDB JsonObject
-        	// Se crea un String con el JSON, ya que MongoDB JsonObject es un envoltorio sobre el string JSON
-        	String jsonString = "{\"prompt\":\"" + prompt + "\"}";
-        	JsonObject json = new JsonObject(jsonString); // Crear JsonObject a partir del String
-
-        	// Escribir el JSON en el cuerpo de la petición
-        	try (OutputStream os = conn.getOutputStream()) {
-            	os.write(json.toString().getBytes());
-            	os.flush();
-        	}
-
-        	int responseCode = conn.getResponseCode();
-        	if (responseCode == 202) {
-            	// Obtener la URL de consulta desde la cabecera "Location"
-            	String location = conn.getHeaderField("Location");
-            	responseObserver.onNext(PromptResponse.newBuilder().setPrompt(location).build());
-        	} else {
-            	logger.warning("Error al enviar el prompt, código: " + responseCode);
-            	responseObserver.onNext(PromptResponse.newBuilder().setPrompt("").build());
-        	}
-    	} catch (IOException e) {
-        	logger.severe("Error en la comunicación con el servicio REST: " + e.getMessage());
-        	responseObserver.onError(e);
-    	} finally {
-        	responseObserver.onCompleted();
-    	}
-	}
-
-	@Override
-	public void getResponse(ResponseRequest request, StreamObserver<ResponseResponse> responseObserver) {
-		String url = request.getUrl();
-		logger.info("Consultando respuesta en: " + url);
-	
-		try {
-			URL responseUrl = new URL(url);
-			HttpURLConnection conn = (HttpURLConnection) responseUrl.openConnection();
-			conn.setRequestMethod("GET");
-	
-			int responseCode = conn.getResponseCode();
-			if (responseCode == 204) {
-				// Aún no hay respuesta
-				responseObserver.onNext(ResponseResponse.newBuilder()
-						.setCompleted(false)
-						.build());
-			} else if (responseCode == 200) {
-				// Leer la respuesta JSON
-				try (Scanner scanner = new Scanner(conn.getInputStream())) {
-					String responseBody = scanner.useDelimiter("\\A").next();
-	
-					// Usar MongoDB Document para parsear la respuesta JSON
-					Document json = Document.parse(responseBody);
-	
-					// Extraer los valores de los campos 'prompt' y 'answer'
-					String prompt = json.getString("prompt");
-					String answer = json.getString("answer");
-	
-					// Enviar la respuesta construida
-					responseObserver.onNext(ResponseResponse.newBuilder()
-							.setPrompt(prompt)  // Usamos el prompt obtenido del JSON
-							.setAnswer(answer)  // Usamos la respuesta obtenida del JSON
-							.setCompleted(true)  // Marcar como completado
-							.build());
-				}
-			}
-		} catch (IOException e) {
-			logger.severe("Error al consultar la respuesta: " + e.getMessage());
-			responseObserver.onError(e);
-		} finally {
-			responseObserver.onCompleted();
-		}
+    public GrpcServiceImpl(Logger logger) {
+        super();
+        this.logger = logger;
     }
 
+    @Override
+    public void ping(PingRequest request, StreamObserver<PingResponse> responseObserver) {
+        logger.info("Recived PING request, value = " + request.getV());
+        responseObserver.onNext(PingResponse.newBuilder().setV(request.getV()).build());
+        responseObserver.onCompleted();
+    }
+
+    /*
+     * Metodo que envía el prompt como JSON al servicio REST /prompt
+     * Recibe un codigo 202 Acceptedcon un token en la cabecera Location
+     * Devuelve el token al cliente gRPC
+     */
+    @Override
+    public void sendPrompt(PromptRequest request, StreamObserver<PromptResponse> responseObserver) {
+        String promptText = request.getPrompt();
+        logger.info("prompText que se envia a llamachat = " + promptText);
+
+        // Crear la solicitud JSON con el prompt
+        String json = "{\"prompt\": \"" + promptText + "\"}";
+        RequestBody body = RequestBody.create(json, MediaType.get("application/json"));
+
+        // Configurara la solicitud HTTP
+        Request requestHttp = new Request.Builder()
+                .url("http://localhost:5020" + "/prompt")
+                .post(body)
+                .build();
+
+        // Llamar a API LlamaChat
+        try (Response response = httpClient.newCall(requestHttp).execute()) {
+            int statusCode = response.code();
+            String location = response.header("Location");
+
+            if (response.code() == 202 && location != null && location.contains("/response/")) {
+                // Obtener el token de la cabecera "Location"
+                String token = location.substring(location.lastIndexOf("/") + 1);
+                System.out.println("Token extraido = " + token);
+
+                // Responder con el token
+                PromptResponse promptResponse = PromptResponse.newBuilder()
+                        .setToken(token)
+                        .build();
+
+                // Enviar respuesta solo si no se ha enviado antes
+                responseObserver.onNext(promptResponse);
+                responseObserver.onCompleted();
+                // return;
+            } else {
+                // Enviar error si el código de respuesta HTTP no es 202
+                responseObserver.onError(new RuntimeException("Respuesta HTTP inesperada. Código: " + statusCode));
+            }
+        } catch (IOException e) {
+            // Enviar error en caso de excepción en la solicitud HTTP
+            responseObserver.onError(new RuntimeException("Error al procesar la solicitud HTTP: " + e.getMessage(), e));
+        }
+    }
+
+    /*
+     * Metodo que consulta el estado de la respuesta /response/{token}
+     * Si 204 No Content, sigue procesando
+     * Si 200 Ok, extrae la respuesta
+     */
+    @Override
+    public void getResponse(ResponseRequest request, StreamObserver<ResponseResponse> responseObserver) {
+        String token = request.getToken();
+        System.out.println("Token solicitado = " + token);
+
+        while (true) {
+            Request requestHttp = new Request.Builder()
+                    .url("http://localhost:5020" + "/response/" + token)
+                    .get()
+                    .build();
+
+            try (Response response = httpClient.newCall(requestHttp).execute()) {
+                int statusCode = response.code();
+                String responseBody = response.body().string();
+
+                System.out.println("Código de estado: " + response.code());
+                System.out.println("Cuerpo de la respuesta: " + responseBody);
+
+                switch (statusCode) {
+                    case 102: // Processing - El servicio no está inicializado
+                        logger.warning("El servicio aún no está inicializado. Reintentando en 2 segundos...");
+                        aux_sleep();
+                        continue;
+
+                    case 202: // Accepted - Petición aceptada, pero aún sin respuesta
+                        logger.info("Solicitud aceptada, pero la respuesta aún no está lista. Reintentando...");
+                        aux_sleep();
+                        continue;
+
+                    case 204: // No content - La respuesta sigue en proceso
+                        logger.info("La respuesta sigue en proceso. Reintentando en 2 segundos...");
+                        aux_sleep();
+                        continue;
+
+                    case 200: // OK - Respuesta al prompt:
+                        String answer = extractAnswer(responseBody);
+                        ResponseResponse responseProto = ResponseResponse.newBuilder()
+                                .setStatus("completed")
+                                .setAnswer(answer)
+                                .build();
+                        responseObserver.onNext(responseProto);
+                        responseObserver.onCompleted();
+                        return; // Salir
+
+                    case 400:
+                        logger.severe("Solicitud incorrecta. Token inválido.");
+                        responseObserver.onError(new RuntimeException("Error 400: Token inválido."));
+                        return;
+
+                    case 404:
+                        logger.severe("Token no encontrado en el servidor.");
+                        responseObserver.onError(new RuntimeException("Error 404: Token no encontrado."));
+                        return;
+
+                    case 500:
+                        logger.severe("Error interno en el servidor llamachat.");
+                        responseObserver.onError(new RuntimeException("Error 500: Fallo interno del servidor."));
+                        return;
+
+                    default: // Cualquier otro código de error no manejado
+                        logger.severe("Código de estado inesperado: " + statusCode);
+                        responseObserver.onError(new RuntimeException("Error inesperado. Código: " + statusCode));
+                        return;
+                }
+
+            } catch (IOException e) {
+                logger.severe("Error en la comunicación con el servidor: " + e.getMessage());
+                responseObserver.onError(e);
+                return;
+            } catch (Exception e) {
+                // Esta captura de excepciones es para cualquier otra excepción inesperada
+                logger.severe("Error inesperado: " + e.getMessage());
+                responseObserver.onError(e);
+                return;
+            }
+
+        }
+
+    }
+
+    /*
+     * Método auxiliar para extraer la respuesta de "answer" en una cadena JSON
+     */
+    private String extractAnswer(String jsonResponse) {
+        // Objeto ObjectMapper de Jackson para manejar JSON
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            JsonNode jsonNode = objectMapper.readTree(jsonResponse); // Convertit la cadena JSON en un objeto JsonNode
+            return jsonNode.get("answer").asText(); // Devolver la respuesta como String
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            return "Error procesando JSON";
+        }
+    }
+
+    private void aux_sleep() {
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+}
 
 /*
-	@Override
-	public void storeImage(ImageData request, StreamObserver<Empty> responseObserver)
-    {
-		logger.info("Add image " + request.getId());
-    	imageMap.put(request.getId(),request);
-    	responseObserver.onNext(Empty.newBuilder().build());
-    	responseObserver.onCompleted();
-	}
-
-	@Override
-	public StreamObserver<ImageData> storeImages(StreamObserver<Empty> responseObserver) 
-	{
-		// La respuesta, sólo un objeto Empty
-		responseObserver.onNext(Empty.newBuilder().build());
-
-		// Se retorna un objeto que, al ser llamado en onNext() con cada
-		// elemento enviado por el cliente, reacciona correctamente
-		return new StreamObserver<ImageData>() {
-			@Override
-			public void onCompleted() {
-				// Terminar la respuesta.
-				responseObserver.onCompleted();
-			}
-			@Override
-			public void onError(Throwable arg0) {
-			}
-			@Override
-			public void onNext(ImageData imagedata) 
-			{
-				logger.info("Add image (multiple) " + imagedata.getId());
-		    	imageMap.put(imagedata.getId(), imagedata);	
-			}
-		};
-	}
-
-	@Override
-	public void obtainImage(ImageSpec request, StreamObserver<ImageData> responseObserver) {
-		// TODO Auto-generated method stub
-		super.obtainImage(request, responseObserver);
-	}
-
-	@Override
-	public StreamObserver<ImageSpec> obtainCollage(StreamObserver<ImageData> responseObserver) {
-		// TODO Auto-generated method stub
-		return super.obtainCollage(responseObserver);
-	}
-	*/
-}
+ * @Override
+ * public void storeImage(ImageData request, StreamObserver<Empty>
+ * responseObserver)
+ * {
+ * logger.info("Add image " + request.getId());
+ * imageMap.put(request.getId(),request);
+ * responseObserver.onNext(Empty.newBuilder().build());
+ * responseObserver.onCompleted();
+ * }
+ * 
+ * @Override
+ * public StreamObserver<ImageData> storeImages(StreamObserver<Empty>
+ * responseObserver)
+ * {
+ * // La respuesta, sólo un objeto Empty
+ * responseObserver.onNext(Empty.newBuilder().build());
+ * 
+ * // Se retorna un objeto que, al ser llamado en onNext() con cada
+ * // elemento enviado por el cliente, reacciona correctamente
+ * return new StreamObserver<ImageData>() {
+ * 
+ * @Override
+ * public void onCompleted() {
+ * // Terminar la respuesta.
+ * responseObserver.onCompleted();
+ * }
+ * 
+ * @Override
+ * public void onError(Throwable arg0) {
+ * }
+ * 
+ * @Override
+ * public void onNext(ImageData imagedata)
+ * {
+ * logger.info("Add image (multiple) " + imagedata.getId());
+ * imageMap.put(imagedata.getId(), imagedata);
+ * }
+ * };
+ * }
+ * 
+ * @Override
+ * public void obtainImage(ImageSpec request, StreamObserver<ImageData>
+ * responseObserver) {
+ * // TODO Auto-generated method stub
+ * super.obtainImage(request, responseObserver);
+ * }
+ * 
+ * @Override
+ * public StreamObserver<ImageSpec> obtainCollage(StreamObserver<ImageData>
+ * responseObserver) {
+ * // TODO Auto-generated method stub
+ * return super.obtainCollage(responseObserver);
+ * }
+ * 
+ * }
+ */
