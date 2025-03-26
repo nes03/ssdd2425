@@ -91,7 +91,7 @@ def login():
 @app.route('/profile')
 @login_required
 def profile():
-    response = requests.get(f'{BACKEND_URL}/api/user/{current_user.id}')
+    response = requests.get(f'http://localhost:5010/api/user/{current_user.id}')
     if response.status_code == 200:
         response.json()
     else:
@@ -104,6 +104,40 @@ def profile():
 def logout():
     logout_user()
     return redirect(url_for('index'))
+
+# Ruta para iniciar una sesion prompt y mantener una conversación con Lamachat
+@app.route('/prompt', methods=['GET', 'POST'])
+def prompt():
+    if request.method == 'POST':
+        user_input = request.form['message']
+        response = requests.post(f'http://localhost:5020/prompt', json={
+            "user_id": current_user.id,
+            "message": user_input
+        })
+        return jsonify(response.json())
+    return render_template('prompt.html')
+
+# Ruta para mostrar los logs de conversaciones
+@app.route('/logs', methods=['GET', 'POST'])
+def logs():
+    if not current_user:
+        flash("Acceso denegado", "danger")
+        return redirect(url_for('index'))
+    response = requests.get(f'http://localhost:5020/api/logs')
+    logs = response.json() if response.status_code == 200 else []
+    if request.method == 'POST':
+        log_id = request.form.get('log_id')
+        requests.delete(f'http://localhost:5020/api/logs/{log_id}')
+        flash("Log eliminado correctamente", "success")
+        return redirect(url_for('logs'))
+    return render_template('logs.html', logs=logs)
+
+# Ruta para ver estadisticas
+@app.route('/stats')
+def stats():
+    response = requests.get(f'http://localhost:5020/api/stats')
+    stats_data = response.json() if response.status_code == 200 else {}
+    return render_template('stats.html', stats=stats_data)
 
 @login_manager.user_loader
 def load_user(user_id):

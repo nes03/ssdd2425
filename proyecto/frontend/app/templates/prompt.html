@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2>Chat con LlamaChat</h2>
+    <div id="chat-box" class="border p-3 mb-3" style="height: 300px; overflow-y: scroll; background: #f8f9fa;"></div>
+    <form id="chat-form">
+        <div class="input-group">
+            <input type="text" id="user-message" class="form-control" placeholder="Escribe un mensaje...">
+            <button class="btn btn-primary" type="submit">Enviar</button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('chat-form').addEventListener('submit', function(event) {
+    event.preventDefault();
+    let message = document.getElementById('user-message').value;
+    let chatBox = document.getElementById('chat-box');
+    chatBox.innerHTML += `<p><strong>Tú:</strong> ${message}</p>`;
+    document.getElementById('user-message').value = '';
+    
+    // Enviar el mensaje al backend que maneja gRPC
+    fetch('/chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt: message })
+    })
+    .then(response => response.json())
+    .then(data => {
+        chatBox.innerHTML += `<p><strong>🦙:</strong> ${data.response}</p>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+    })
+    .catch(error => {
+        chatBox.innerHTML += `<p><strong>🦙:</strong> Hubo un error al obtener la respuesta.</p>`;
+    });
+});
+</script>
+{% endblock %}
