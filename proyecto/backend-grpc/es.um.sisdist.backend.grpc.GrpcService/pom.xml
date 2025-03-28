@@ -36,7 +36,19 @@
                     <version>1.3.2</version>
 		</dependency>
 
-		
+    	<!-- Spring Boot Starter Web (para servicios REST) -->
+		<dependency>
+        	<groupId>org.springframework.boot</groupId>
+        	<artifactId>spring-boot-starter-web</artifactId>
+        	<version>3.4.4</version>  <!-- O la versión más reciente -->
+    	</dependency>
+
+    	<!-- Spring Boot Starter (núcleo de Spring) -->
+    	<dependency>
+        	<groupId>org.springframework.boot</groupId>
+        	<artifactId>spring-boot-starter</artifactId>
+        	<version>3.4.4</version>
+    	</dependency>
 
 	</dependencies>
 	<build>
