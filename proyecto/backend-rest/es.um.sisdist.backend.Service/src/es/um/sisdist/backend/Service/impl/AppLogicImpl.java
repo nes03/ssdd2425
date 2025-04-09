@@ -1,13 +1,9 @@
-/**
- *
- */
 package es.um.sisdist.backend.Service.impl;
-
-import java.util.Optional;
-import java.util.logging.Logger;
 
 import es.um.sisdist.backend.grpc.GrpcServiceGrpc;
 import es.um.sisdist.backend.grpc.PingRequest;
+import es.um.sisdist.backend.grpc.PromptRequest;
+import es.um.sisdist.backend.grpc.PromptResponse;
 import es.um.sisdist.backend.dao.DAOFactoryImpl;
 import es.um.sisdist.backend.dao.IDAOFactory;
 import es.um.sisdist.backend.dao.models.User;
@@ -16,85 +12,89 @@ import es.um.sisdist.backend.dao.user.IUserDAO;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
-/**
- * @author dsevilla
- *
- */
-public class AppLogicImpl
-{
-    IDAOFactory daoFactory;
-    IUserDAO dao;
+import java.util.Optional;
+import java.util.logging.Logger;
 
+public class AppLogicImpl {
     private static final Logger logger = Logger.getLogger(AppLogicImpl.class.getName());
-
     private final ManagedChannel channel;
     private final GrpcServiceGrpc.GrpcServiceBlockingStub blockingStub;
-    //private final GrpcServiceGrpc.GrpcServiceStub asyncStub;
 
-    static AppLogicImpl instance = new AppLogicImpl();
+    private static final AppLogicImpl instance = new AppLogicImpl();
 
-    private AppLogicImpl()
-    {
+    private final IDAOFactory daoFactory;
+    private final IUserDAO dao;
+
+    private AppLogicImpl() {
         daoFactory = new DAOFactoryImpl();
         Optional<String> backend = Optional.ofNullable(System.getenv("DB_BACKEND"));
-        
-        if (backend.isPresent() && backend.get().equals("mongo"))
+
+        if (backend.isPresent() && backend.get().equals("mongo")) {
             dao = daoFactory.createMongoUserDAO();
-        else
+        } else {
             dao = daoFactory.createSQLUserDAO();
+        }
 
         var grpcServerName = Optional.ofNullable(System.getenv("GRPC_SERVER"));
         var grpcServerPort = Optional.ofNullable(System.getenv("GRPC_SERVER_PORT"));
 
         channel = ManagedChannelBuilder
                 .forAddress(grpcServerName.orElse("localhost"), Integer.parseInt(grpcServerPort.orElse("50051")))
-                // Channels are secure by default (via SSL/TLS). For the example we disable TLS
-                // to avoid needing certificates.
-                .usePlaintext().build();
+                .usePlaintext()
+                .build();
+
         blockingStub = GrpcServiceGrpc.newBlockingStub(channel);
-        //asyncStub = GrpcServiceGrpc.newStub(channel);
     }
 
-    public static AppLogicImpl getInstance()
-    {
+    public static AppLogicImpl getInstance() {
         return instance;
     }
 
-    public Optional<User> getUserByEmail(String userId)
-    {
-        Optional<User> u = dao.getUserByEmail(userId);
-        return u;
+    public Optional<User> getUserByEmail(String userId) {
+        return dao.getUserByEmail(userId);
     }
 
-    public Optional<User> getUserById(String userId)
-    {
+    public Optional<User> getUserById(String userId) {
         return dao.getUserById(userId);
     }
 
-    public boolean ping(int v)
-    {
-    	logger.info("Issuing ping, value: " + v);
-    	
-        // Test de grpc, puede hacerse con la BD
-    	var msg = PingRequest.newBuilder().setV(v).build();
-        var response = blockingStub.ping(msg);
-        
-        return response.getV() == v;
+    public boolean ping(int v) {
+        logger.info("Enviando ping al servicio gRPC con valor: " + v);
+        try {
+            PingRequest request = PingRequest.newBuilder().setV(v).build();
+            var response = blockingStub.ping(request);
+            return response.getV() == v;
+        } catch (Exception e) {
+            logger.severe("Error durante el ping al servicio gRPC: " + e.getMessage());
+            return false;
+        }
     }
 
-    // El frontend, a través del formulario de login,
-    // envía el usuario y pass, que se convierte a un DTO. De ahí
-    // obtenemos la consulta a la base de datos, que nos retornará,
-    // si procede,
-    public Optional<User> checkLogin(String email, String pass)
-    {
+    /**
+     * Envía un prompt al servicio gRPC usando sendPrompt() y devuelve el token como respuesta
+     */
+    public String fetchPromptResponse(String promptText) {
+        logger.info("Enviando prompt al servicio gRPC (vía sendPrompt): " + promptText);
+        try {
+            PromptRequest request = PromptRequest.newBuilder()
+                    .setPrompt(promptText)
+                    .build();
+            PromptResponse response = blockingStub.sendPrompt(request);
+            return response.getToken();
+        } catch (Exception e) {
+            logger.severe("Error al procesar el prompt en el servicio gRPC: " + e.getMessage());
+            throw new RuntimeException("Error al comunicarse con el servicio gRPC", e);
+        }
+    }
+
+    public Optional<User> checkLogin(String email, String pass) {
         Optional<User> u = dao.getUserByEmail(email);
 
-        if (u.isPresent())
-        {
+        if (u.isPresent()) {
             String hashed_pass = UserUtils.md5pass(pass);
-            if (0 == hashed_pass.compareTo(u.get().getPassword_hash()))
+            if (hashed_pass.equals(u.get().getPassword_hash())) {
                 return u;
+            }
         }
 
         return Optional.empty();

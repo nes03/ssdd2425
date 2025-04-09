@@ -1,0 +1,24 @@
+package es.um.sisdist.backend.grpc;
+
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+
+
+import com.tuempresa.grpc.PromptServiceGrpc;
+import com.tuempresa.grpc.PromptRequest;
+import com.tuempresa.grpc.PromptReply;
+
+public class PromptGrpcClient {
+
+    private final GrpcServiceClient grpcServiceClient;
+
+    public PromptGrpcClient() {
+        // Crear una instancia de GrpcServiceClient
+        grpcServiceClient = new GrpcServiceClient("localhost", 50051);
+    }
+
+    public String fetchAndResponse(String prompt) {
+        // Delegar la llamada al GrpcServiceClient
+        return grpcServiceClient.fetchPromptResponse(prompt);
+    }
+}

@@ -118,6 +118,7 @@ public class GrpcServiceClient {
           @Override
           public void onError(Throwable t) {
             System.err.println("Error en sendPrompt opopopp: " + t.getMessage());
+            response_for_REST = "Error: No se pudo obtener la respuesta del servicio gRPC";
             latch.countDown(); // Asegúrate de contar hacia abajo el latch si ocurre un error
           }
         });
@@ -154,6 +155,7 @@ public class GrpcServiceClient {
           @Override
           public void onError(Throwable t) {
             System.err.println("Error en getResponse: " + t.getMessage());
+            response_for_REST = "Error: No se pudo obtener la respuesta del servicio gRPC";
             latch.countDown(); // Asegúrate de contar hacia abajo si ocurre un error
           }
 

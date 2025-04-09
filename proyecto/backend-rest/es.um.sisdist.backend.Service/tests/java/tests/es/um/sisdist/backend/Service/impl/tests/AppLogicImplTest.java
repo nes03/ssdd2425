@@ -1,36 +1,42 @@
-/**
- *
- */
 package es.um.sisdist.backend.Service.impl.tests;
 
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.stub.StreamObserver;
+import com.tuempresa.grpc.PromptServiceGrpc;
+import com.tuempresa.grpc.PromptRequest;
+import com.tuempresa.grpc.PromptReply;
 
-import es.um.sisdist.backend.Service.impl.AppLogicImpl;
-import es.um.sisdist.backend.dao.models.User;
+public class AppLogicImplTest {
 
-/**
- * @author dsevilla
- *
- */
-class AppLogicImplTest
-{
-        static AppLogicImpl impl;
+    @Test
+    void testFetchPromptResponseWithRealGrpc() throws Exception {
+        // Configurar un servidor gRPC local
+        Server server = ServerBuilder.forPort(50051)
+                .addService(new PromptServiceGrpc.PromptServiceImplBase() {
+                    @Override
+                    public void sendPrompt(PromptRequest request, StreamObserver<PromptReply> responseObserver) {
+                        // Responder con un mensaje simulado
+                        PromptReply reply = PromptReply.newBuilder()
+                                .setResponse("mock response")
+                                .build();
+                        responseObserver.onNext(reply);
+                        responseObserver.onCompleted();
+                    }
+                })
+                .build()
+                .start();
 
-        @BeforeAll
-        static void setup()
-        {
-                impl = AppLogicImpl.getInstance();
-        }
+        // Crear una instancia real de GrpcServiceClient
+        GrpcServiceClient client = new GrpcServiceClient("localhost", 50051);
 
-        @Test
-        void testDefaultUser()
-        {
-                Optional<User> u = impl.getUserByEmail("dsevilla@um.es");
-                assertEquals(u.get().getEmail(), "dsevilla@um.es");
-        }
+        // Probar el método fetchPromptResponse
+        String response = client.fetchPromptResponse("test prompt");
+        assertEquals("mock response", response, "La respuesta del servicio gRPC no coincide");
+
+        // Detener el servidor gRPC
+        server.shutdown();
+    }
 }

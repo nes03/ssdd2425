@@ -1,6 +1,7 @@
 from flask import Flask, render_template, send_from_directory, url_for, request, redirect, flash
 from flask_login import LoginManager, login_manager, current_user, login_user, login_required, logout_user
 from forms import LoginForm, SignUpForm
+from flask import jsonify,request, render_template
 import requests
 import os
 
@@ -18,7 +19,8 @@ login_manager.init_app(app) # Para mantener la sesión
 # Python ofrece varias formas de almacenar esto de forma segura, que
 # no cubriremos aquí.
 app.config['SECRET_KEY'] = 'qH1vprMjavek52cv7Lmfe1FoCexrrV8egFnB21jHhkuOHm8hJUe1hwn7pKEZQ1fioUzDb3sWcNK1pJVVIhyrgvFiIrceXpKJBFIn_i9-LTLBCc4cqaI3gjJJHU6kxuT8bnC7Ng'
-BACKEND_URL = 'http://localhost:5000'
+
+BACKEND_URL = f'http://localhost:8080/prompt'
 
 @app.route('/static/<path:path>')
 def serve_static(path):
@@ -105,17 +107,7 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-# Ruta para iniciar una sesion prompt y mantener una conversación con Lamachat
-@app.route('/prompt', methods=['GET', 'POST'])
-def prompt():
-    if request.method == 'POST':
-        user_input = request.form['message']
-        response = requests.post(f'http://localhost:5020/prompt', json={
-            "user_id": current_user.id,
-            "message": user_input
-        })
-        return jsonify(response.json())
-    return render_template('prompt.html')
+
 
 # Ruta para mostrar los logs de conversaciones
 @app.route('/logs', methods=['GET', 'POST'])
@@ -145,6 +137,22 @@ def load_user(user_id):
         if user.id == int(user_id):
             return user
     return None
+@app.route("/prompt", methods=["GET", "POST"])
+def prompt():
+    if request.method == "POST":
+        prompt = request.form.get("prompt")
 
+        # Enviar el prompt al API REST en Java
+        try:
+            response = requests.post(BACKEND_URL, json={"prompt": prompt})
+            if response.status_code == 200:
+                data = response.json()
+                return render_template("prompt.html", prompt=prompt, response=data["response"])
+            else:
+                return render_template("prompt.html", error="Error en el servidor Java", prompt=prompt)
+        except Exception as e:
+            return render_template("prompt.html", error=str(e), prompt=prompt)
+
+    return render_template("prompt.html")
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5010)))

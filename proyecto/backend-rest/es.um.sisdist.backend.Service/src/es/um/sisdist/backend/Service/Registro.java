@@ -2,6 +2,7 @@ package es.um.sisdist.backend.Service;
 
 
 import es.um.sisdist.backend.Service.impl.AppLogicImpl;
+import es.um.sisdist.models.RegisterUser;
 import es.um.sisdist.models.UserDTO;
 import es.um.sisdist.models.UserDTOUtils;
 import jakarta.ws.rs.Consumes;
@@ -22,8 +23,11 @@ public class Registro
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response registerUser(String email, String password, String name){
-        UserDTO user = new UserDTO(email, email, password, name, "prueba", 0);
+    public Response registerUser(RegisterUser request) {
+        // Crear un nuevo usuario a partir de los datos de la solicitud
+        UserDTO user = new UserDTO(request.getEmail(), request.getEmail(), request.getPassword(), request.getName(), "prueba", 0);
+
+        // Retornar la respuesta
         return Response.ok(UserDTOUtils.fromDTO(user)).build();
     }
 }

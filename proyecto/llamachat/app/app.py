@@ -1,4 +1,5 @@
-from typing import cast, override
+from typing import cast
+from typing_extensions import override
 import uuid
 import http
 import time
