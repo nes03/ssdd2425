@@ -5,9 +5,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
-import com.tuempresa.grpc.PromptServiceGrpc;
-import com.tuempresa.grpc.PromptRequest;
-import com.tuempresa.grpc.PromptReply;
+//import com.tuempresa.grpc.PromptServiceGrpc;
+//import com.tuempresa.grpc.PromptRequest;
+//import com.tuempresa.grpc.PromptReply;
+
+import es.um.sisdist.backend.grpc.GrpcServiceGrpc;
+import es.um.sisdist.backend.grpc.PromptRequest;
+import es.um.sisdist.backend.grpc.PromptResponse;
 
 public class AppLogicImplTest {
 

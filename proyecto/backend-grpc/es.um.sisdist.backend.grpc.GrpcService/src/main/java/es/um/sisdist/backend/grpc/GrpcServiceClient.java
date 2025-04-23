@@ -65,7 +65,6 @@ public class GrpcServiceClient {
 
   // ----------------------------------------------------------
   // Para servicio REST Externo
-  private String response_for_REST = "";
   private static final String DEFAULT_HOST = "localhost";
   private static final int DEFAULT_PORT = 50051;
 
@@ -86,17 +85,14 @@ public class GrpcServiceClient {
     asyncStub = GrpcServiceGrpc.newStub(channel); // Crear stub para llamadas asíncronas
   }
 
-  public String getResponseForREST() {
-    return response_for_REST;
-  }
-
   public void shutdown() throws InterruptedException {
     channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
   }
 
   public void sendPromptAndFetchResponse(String prompt) {
     CountDownLatch latch = new CountDownLatch(1);
-    System.out.println("Cliente envia el prompt");
+    System.out.println("Cliente envia el prompt: " + prompt);
+    final String[] grpcResponse = new String[1];
     // 1. Enviar el prompt y recibir el token de ese prompt
     asyncStub.sendPrompt(PromptRequest.newBuilder().setPrompt(prompt).build(),
         new StreamObserver<PromptResponse>() {
@@ -107,7 +103,7 @@ public class GrpcServiceClient {
             System.out.println("CLiente recibe el Token de su prompt: " + token);
 
             // 2. Llamar a fetchResponse para obtener la respuesta
-            fetchResponse(token, latch);
+            fetchResponse(token, latch, grpcResponse);
           }
 
           @Override
@@ -118,7 +114,7 @@ public class GrpcServiceClient {
           @Override
           public void onError(Throwable t) {
             System.err.println("Error en sendPrompt opopopp: " + t.getMessage());
-            response_for_REST = "Error: No se pudo obtener la respuesta del servicio gRPC";
+            grpcResponse[0] = "Error: No se pudo obtener la respuesta del servicio gRPC";
             latch.countDown(); // Asegúrate de contar hacia abajo el latch si ocurre un error
           }
         });
@@ -130,7 +126,7 @@ public class GrpcServiceClient {
     }
   }
 
-  public void fetchResponse(String token, CountDownLatch latch) {
+  public void fetchResponse(String token, CountDownLatch latch, String[] grpcResponse) {
     System.out.println("Cliente quiere consultar el estado del Token: " + token);
     asyncStub.getResponse(ResponseRequest.newBuilder().setToken(token).build(),
         new StreamObserver<ResponseResponse>() {
@@ -139,13 +135,13 @@ public class GrpcServiceClient {
           public void onNext(ResponseResponse response) {
             if ("completed".equals(response.getStatus())) {
               System.out.println("Respuesta recibida: " + response.getAnswer());
-              response_for_REST = response.getAnswer();
+              grpcResponse[0] = response.getAnswer();
               latch.countDown(); // Solo se cuenta hacia abajo una vez
             } else if ("processing".equals(response.getStatus())) {
               System.out.println("Esperando respuesta...");
               try {
                 Thread.sleep(2000); // Esperar
-                fetchResponse(token, latch); // Reintentar la solicitud
+                fetchResponse(token, latch, grpcResponse); // Reintentar la solicitud
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
               }
@@ -155,7 +151,7 @@ public class GrpcServiceClient {
           @Override
           public void onError(Throwable t) {
             System.err.println("Error en getResponse: " + t.getMessage());
-            response_for_REST = "Error: No se pudo obtener la respuesta del servicio gRPC";
+            grpcResponse[0] = "Error al obtener respuesta del servidor";
             latch.countDown(); // Asegúrate de contar hacia abajo si ocurre un error
           }
 

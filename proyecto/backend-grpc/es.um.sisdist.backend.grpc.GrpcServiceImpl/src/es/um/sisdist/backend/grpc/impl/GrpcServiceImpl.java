@@ -43,7 +43,7 @@ class GrpcServiceImpl extends GrpcServiceGrpc.GrpcServiceImplBase {
     }
 
     /*
-     * Metodo que envía el prompt como JSON al servicio REST /prompt
+     * Metodo POST que envía el prompt como JSON al servicio REST /prompt
      * Recibe un codigo 202 Acceptedcon un token en la cabecera Location
      * Devuelve el token al cliente gRPC
      */
@@ -51,9 +51,14 @@ class GrpcServiceImpl extends GrpcServiceGrpc.GrpcServiceImplBase {
     public void sendPrompt(PromptRequest request, StreamObserver<PromptResponse> responseObserver) {
         String promptText = request.getPrompt();
         logger.info("prompText que se envia a llamachat = " + promptText);
+        System.out.println("prompText que se envia a llamachat = " + promptText);
 
+        logger.info("prompText qu");
         // Crear la solicitud JSON con el prompt
         String json = "{\"prompt\": \"" + promptText + "\"}";
+        logger.info("prompText que se envia a llamachat en json= " + json);
+        System.out.println("prompText que se envia a llamachat en json= " + json);
+
         RequestBody body = RequestBody.create(json, MediaType.get("application/json"));
 
         // Configurara la solicitud HTTP
@@ -84,6 +89,7 @@ class GrpcServiceImpl extends GrpcServiceGrpc.GrpcServiceImplBase {
             } else {
                 // Enviar error si el código de respuesta HTTP no es 202
                 responseObserver.onError(new RuntimeException("Respuesta HTTP inesperada. Código: " + statusCode));
+                logger.info("Respuesta HTTP inesperada. Código: " + statusCode);
             }
         } catch (IOException e) {
             // Enviar error en caso de excepción en la solicitud HTTP
@@ -92,7 +98,7 @@ class GrpcServiceImpl extends GrpcServiceGrpc.GrpcServiceImplBase {
     }
 
     /*
-     * Metodo que consulta el estado de la respuesta /response/{token}
+     * Metodo GET que consulta el estado de la respuesta /response/{token}
      * Si 204 No Content, sigue procesando
      * Si 200 Ok, extrae la respuesta
      */

@@ -20,7 +20,7 @@ document.getElementById('chat-form').addEventListener('submit', function(event) 
     document.getElementById('user-message').value = '';
     
     // Enviar el mensaje al backend que maneja gRPC
-    fetch('/chat', {
+    fetch('/prompt', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
