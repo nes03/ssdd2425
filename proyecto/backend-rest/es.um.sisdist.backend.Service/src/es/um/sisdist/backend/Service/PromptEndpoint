@@ -38,20 +38,20 @@ public class PromptEndpoints {
     }
 
     public static class PromptResponse {
-        private String response;
+        private String answer;
 
         public PromptResponse() {} // JAX-RS necesita constructor vacío
 
-        public PromptResponse(String response) {
-            this.response = response;
+        public PromptResponse(String answer) {
+            this.answer = answer;
         }
 
-        public String getResponse() {
-            return response;
+        public String getAnswer() {
+            return answer;
         }
 
-        public void setResponse(String response) {
-            this.response = response;
+        public void setAnswer(String answer) {
+            this.answer = answer;
         }
     }
 }

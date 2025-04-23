@@ -39,6 +39,7 @@ public class AppLogicImpl {
         var grpcServerPort = Optional.ofNullable(System.getenv("GRPC_SERVER_PORT"));
 
         channel = ManagedChannelBuilder
+                // .forAddress(grpcServerName.orElse("backend-grpc"),Integer.parseInt(grpcServerPort.orElse("50051")))
                 .forAddress(grpcServerName.orElse("localhost"), Integer.parseInt(grpcServerPort.orElse("50051")))
                 .usePlaintext()
                 .build();
@@ -71,7 +72,8 @@ public class AppLogicImpl {
     }
 
     /**
-     * Envía un prompt al servicio gRPC usando sendPrompt() y devuelve el token como respuesta
+     * Envía un prompt al servicio gRPC usando sendPrompt() y devuelve el token como
+     * respuesta
      */
     public String fetchPromptResponse(String promptText) {
         logger.info("Enviando prompt al servicio gRPC (vía sendPrompt): " + promptText);
