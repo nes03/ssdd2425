@@ -115,11 +115,11 @@ def logs():
     if not current_user:
         flash("Acceso denegado", "danger")
         return redirect(url_for('index'))
-    response = requests.get(f'http://localhost:5020/api/logs')
+    response = requests.get(f'http://localhost:8080/api/logs')
     logs = response.json() if response.status_code == 200 else []
     if request.method == 'POST':
         log_id = request.form.get('log_id')
-        requests.delete(f'http://localhost:5020/api/logs/{log_id}')
+        requests.delete(f'http://localhost:8080/api/logs/{log_id}')
         flash("Log eliminado correctamente", "success")
         return redirect(url_for('logs'))
     return render_template('logs.html', logs=logs)
@@ -127,7 +127,7 @@ def logs():
 # Ruta para ver estadisticas
 @app.route('/stats')
 def stats():
-    response = requests.get(f'http://localhost:5020/api/stats')
+    response = requests.get(f'http://localhost:8080/api/stats')
     stats_data = response.json() if response.status_code == 200 else {}
     return render_template('stats.html', stats=stats_data)
 
@@ -146,10 +146,16 @@ def prompt():
         try:
             response = requests.post(BACKEND_URL, json={"prompt": prompt})
             if response.status_code == 200:
-                data = response.json()
-                return render_template("prompt.html", prompt=prompt, response=data["response"])
+                try:
+                    data = response.json()
+                    if "response" in data:
+                        return render_template("prompt.html", prompt=prompt, response=data["response"])
+                    else:
+                        return render_template("prompt.html", error="Respuesta inesperada del servidor", prompt=prompt)
+                except ValueError:
+                    return render_template("prompt.html", error="Error al procesar la respuesta del servidor", prompt=prompt)
             else:
-                return render_template("prompt.html", error="Error en el servidor Java", prompt=prompt)
+                return render_template("prompt.html", error=f"Error en el servidor Java: {response.text}", prompt=prompt)
         except Exception as e:
             return render_template("prompt.html", error=str(e), prompt=prompt)
 

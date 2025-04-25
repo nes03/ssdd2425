@@ -21,7 +21,7 @@
     
         // Enviar mensaje al backend
         // con solo /prompt se hace la solucitud al frontend, hay que poner el contenedor de API REST /Service/api
-        fetch('/prompt', {
+        fetch('api/prompt', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -30,7 +30,10 @@
         })
         .then(response => {
             if (!response.ok) throw new Error("No se pudo enviar el prompt");
-            const location = response.headers.get("Location");  // /response/<token>
+            const location = response.headers.get("Location");
+            if (!location) {
+                throw new Error("El servidor no devolvió una ubicación válida");
+            }
             return pollForResponse(location);
         })
         .then(answer => {
