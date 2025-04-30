@@ -11,6 +11,7 @@ import es.um.sisdist.backend.grpc.GrpcServiceGrpc;
 import es.um.sisdist.backend.grpc.PromptRequest;
 import es.um.sisdist.backend.grpc.PromptResponse;
 import es.um.sisdist.backend.grpc.*;
+
 public class PromptGrpcClient {
 
     private final GrpcServiceClient grpcServiceClient;
@@ -23,7 +24,7 @@ public class PromptGrpcClient {
 
     public String fetchAndResponse(String prompt) {
         // Delegar la llamada al GrpcServiceClient
-        //return grpcServiceClient.fetchPromptResponse(prompt);
+        // return grpcServiceClient.fetchPromptResponse(prompt);
         grpcServiceClient.sendPromptAndFetchResponse(prompt);
         return "Hecho";
     }

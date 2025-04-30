@@ -65,8 +65,10 @@ public class GrpcServiceClient {
 
   // ----------------------------------------------------------
   // Para servicio REST Externo
-  private static final String DEFAULT_HOST = "localhost";
+  private static final String DEFAULT_HOST = "backend-grpc";
   private static final int DEFAULT_PORT = 50051;
+
+  private volatile String lastResponse = "Aún no hay respuesta";
 
   public GrpcServiceClient() {
     this(DEFAULT_HOST, DEFAULT_PORT);
@@ -77,8 +79,7 @@ public class GrpcServiceClient {
   public GrpcServiceClient(String host, int port) {
     channel = ManagedChannelBuilder.forAddress(host, port)
         // Channels are secure by default (via SSL/TLS). For the example we disable TLS
-        // to avoid
-        // needing certificates.
+        // to avoid needing certificates.
         .usePlaintext()
         .build();
     // blockingStub = GrpcServiceGrpc.newBlockingStub(channel);
@@ -90,8 +91,8 @@ public class GrpcServiceClient {
   }
 
   public void sendPromptAndFetchResponse(String prompt) {
-    CountDownLatch latch = new CountDownLatch(1);
-    System.out.println("Cliente envia el prompt: " + prompt);
+    CountDownLatch latch = new CountDownLatch(1); // Espera a que se complete la respuesta
+    logger.info("Cliente envia el prompt: " + prompt);
     final String[] grpcResponse = new String[1];
     // 1. Enviar el prompt y recibir el token de ese prompt
     asyncStub.sendPrompt(PromptRequest.newBuilder().setPrompt(prompt).build(),
@@ -100,7 +101,7 @@ public class GrpcServiceClient {
           @Override
           public void onNext(PromptResponse response) {
             String token = response.getToken();
-            System.out.println("CLiente recibe el Token de su prompt: " + token);
+            logger.info("Cliente recibe el Token de su prompt: " + token);
 
             // 2. Llamar a fetchResponse para obtener la respuesta
             fetchResponse(token, latch, grpcResponse);
@@ -108,37 +109,38 @@ public class GrpcServiceClient {
 
           @Override
           public void onCompleted() {
-            System.out.println("Prompt enviado correctamente.");
+            logger.info("Prompt enviado correctamente.");
           }
 
           @Override
           public void onError(Throwable t) {
-            System.err.println("Error en sendPrompt opopopp: " + t.getMessage());
+            logger.severe("Error en sendPrompt opopopp: " + t.getMessage());
             grpcResponse[0] = "Error: No se pudo obtener la respuesta del servicio gRPC";
-            latch.countDown(); // Asegúrate de contar hacia abajo el latch si ocurre un error
+            latch.countDown();
           }
         });
 
     try {
-      latch.await(); // Esperar a que termine la respuesta
+      latch.await(); // Esperar a que termine la respuesta del servidor gRPC
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
   }
 
   public void fetchResponse(String token, CountDownLatch latch, String[] grpcResponse) {
-    System.out.println("Cliente quiere consultar el estado del Token: " + token);
+    logger.info("Cliente quiere consultar el estado del Token: " + token);
     asyncStub.getResponse(ResponseRequest.newBuilder().setToken(token).build(),
         new StreamObserver<ResponseResponse>() {
 
           @Override
           public void onNext(ResponseResponse response) {
             if ("completed".equals(response.getStatus())) {
-              System.out.println("Respuesta recibida: " + response.getAnswer());
+              logger.info("Respuesta recibida: " + response.getAnswer());
+              lastResponse = response.getAnswer(); // Guardamos la última respuesta
               grpcResponse[0] = response.getAnswer();
               latch.countDown(); // Solo se cuenta hacia abajo una vez
             } else if ("processing".equals(response.getStatus())) {
-              System.out.println("Esperando respuesta...");
+              logger.info("Esperando respuesta...");
               try {
                 Thread.sleep(2000); // Esperar
                 fetchResponse(token, latch, grpcResponse); // Reintentar la solicitud
@@ -150,23 +152,30 @@ public class GrpcServiceClient {
 
           @Override
           public void onError(Throwable t) {
-            System.err.println("Error en getResponse: " + t.getMessage());
+            logger.severe("Error en getResponse: " + t.getMessage());
+            t.printStackTrace();
             grpcResponse[0] = "Error al obtener respuesta del servidor";
             latch.countDown(); // Asegúrate de contar hacia abajo si ocurre un error
           }
 
           @Override
           public void onCompleted() {
-            System.out.println("Finalizada la obtención de respuesta.");
+            logger.info("Finalizada la obtención de respuesta.");
           }
         });
   }
 
-  public static void main(String[] args) throws InterruptedException {
-    GrpcServiceClient client = new GrpcServiceClient("localhost", 50051);
-    client.sendPromptAndFetchResponse("¿Cuál es la capital de Francia?");
-    client.shutdown();
+  public String getLastResponse() {
+    return lastResponse;
   }
+
+  /*
+   * public static void main(String[] args) throws InterruptedException {
+   * GrpcServiceClient client = new GrpcServiceClient("localhost", 50051);
+   * client.sendPromptAndFetchResponse("¿Cuál es la capital de Francia?");
+   * client.shutdown();
+   * }
+   */
 
 }
 

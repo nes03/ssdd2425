@@ -8,6 +8,8 @@
 		<!--<maven.compiler.source>17</maven.compiler.source>
 		<maven.compiler.target>17</maven.compiler.target>-->
 		<maven.compiler.release>17</maven.compiler.release>
+		<maven.compiler.encoding>UTF-8</maven.compiler.encoding>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 	<build>
 		<sourceDirectory>src</sourceDirectory>
@@ -32,6 +34,9 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.22.2</version>
 			</plugin>
+
+			
+
 		</plugins>
 	</build>
 	<dependencyManagement>
@@ -67,6 +72,24 @@
 			    <type>pom</type>
 			    <scope>import</scope>
 			</dependency>
+
+			<!-- Dependencia para los archivos .proto de GRPC -->
+    		<dependency>
+        		<groupId>io.grpc</groupId>
+        		<artifactId>grpc-netty</artifactId>
+        		<version>1.42.1</version> <!-- Usualmente la versión más reciente de GRPC -->
+    		</dependency>
+    		<dependency>
+        		<groupId>io.grpc</groupId>
+        		<artifactId>grpc-protobuf</artifactId>
+        		<version>1.42.1</version>
+    		</dependency>
+    		<dependency>
+        		<groupId>io.grpc</groupId>
+        		<artifactId>grpc-stub</artifactId>
+       			<version>1.42.1</version>
+    		</dependency>
+
 		</dependencies>
 	</dependencyManagement>
 

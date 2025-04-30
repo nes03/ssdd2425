@@ -21,7 +21,7 @@
     
         // Enviar mensaje al backend
         // con solo /prompt se hace la solucitud al frontend, hay que poner el contenedor de API REST /Service/api
-        fetch('api/prompt', {
+        fetch('/Service/prompt', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
