@@ -160,5 +160,15 @@ def prompt():
             return render_template("prompt.html", error=str(e), prompt=prompt)
 
     return render_template("prompt.html")
+
+@app.route("/Service/prompt", methods=["POST"])
+def proxy_prompt_to_backend():
+    try:
+        response = requests.post("http://backend-rest:8080/Service/prompt", json=request.get_json())
+        return (response.text, response.status_code, response.headers.items())
+    except Exception as e:
+        return {"error": str(e)}, 500
+    
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5010)))

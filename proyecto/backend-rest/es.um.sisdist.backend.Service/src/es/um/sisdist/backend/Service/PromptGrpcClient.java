@@ -18,8 +18,8 @@ public class PromptGrpcClient {
 
     public PromptGrpcClient() {
         // Crear una instancia de GrpcServiceClient
-        // grpcServiceClient = new GrpcServiceClient("backend-grpc", 50051);
-        grpcServiceClient = new GrpcServiceClient("localhost", 50051);
+        grpcServiceClient = new GrpcServiceClient("backend-grpc", 50051);
+        // grpcServiceClient = new GrpcServiceClient("localhost", 50051);
     }
 
     public String fetchAndResponse(String prompt) {

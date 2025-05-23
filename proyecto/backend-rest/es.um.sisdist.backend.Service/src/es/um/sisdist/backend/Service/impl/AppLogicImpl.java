@@ -46,14 +46,12 @@ public class AppLogicImpl {
         channel = ManagedChannelBuilder
                 .forAddress(grpcServerName.orElse("backend-grpc"), Integer.parseInt(
                         grpcServerPort.orElse("50051")))
-                .forAddress(grpcServerName.orElse("localhost"),
-                        Integer.parseInt(grpcServerPort.orElse("50051")))
                 .usePlaintext()
                 .build();
 
         blockingStub = GrpcServiceGrpc.newBlockingStub(channel);
 
-        grpcClient = new GrpcServiceClient();
+        // grpcClient = new GrpcServiceClient();
     }
 
     public static AppLogicImpl getInstance() {
@@ -85,16 +83,29 @@ public class AppLogicImpl {
      * respuesta
      */
     public void fetchPromptResponse(String promptText) {
-        logger.info("Enviando prompt al servicio gRPC (vía sendPrompt): " + promptText);
+        logger.info("Enviando prompt al servicio gRPC: " + promptText);
         try {
-            /*
-             * PromptRequest request = PromptRequest.newBuilder()
-             * .setPrompt(promptText)
-             * .build();
-             * PromptResponse response = blockingStub.sendPrompt(request);
-             * return response.getToken();
-             */
-            grpcClient.sendPromptAndFetchResponse(promptText);
+            PromptRequest request = PromptRequest.newBuilder()
+                    .setPrompt(promptText)
+                    .build();
+            PromptResponse response = blockingStub.sendPrompt(request);
+            this.lastPromptResponse = response.getToken(); // Guardamos respuesta
+        } catch (Exception e) {
+            logger.severe("Error al procesar el prompt en el servicio gRPC: " + e.getMessage());
+            throw new RuntimeException("Error al comunicarse con el servicio gRPC", e);
+        }
+    }
+
+    public String fetchPromptResponseSync(String promptText) {
+        logger.info("Enviando prompt al servicio gRPC (sincrónico): " + promptText);
+        try {
+            PromptRequest request = PromptRequest.newBuilder()
+                    .setPrompt(promptText)
+                    .build();
+
+            PromptResponse response = blockingStub.sendPrompt(request);
+
+            return response.getToken();
         } catch (Exception e) {
             logger.severe("Error al procesar el prompt en el servicio gRPC: " + e.getMessage());
             throw new RuntimeException("Error al comunicarse con el servicio gRPC", e);

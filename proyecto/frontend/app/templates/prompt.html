@@ -30,14 +30,10 @@
         })
         .then(response => {
             if (!response.ok) throw new Error("No se pudo enviar el prompt");
-            const location = response.headers.get("Location");
-            if (!location) {
-                throw new Error("El servidor no devolvió una ubicación válida");
-            }
-            return pollForResponse(location);
+            return response.json();
         })
         .then(answer => {
-            chatBox.innerHTML += `<p><strong>🦙:</strong> ${answer}</p>`;
+            chatBox.innerHTML += `<p><strong>🦙:</strong> ${answer.answer}</p>`;
             chatBox.scrollTop = chatBox.scrollHeight;
         })
         .catch(error => {
@@ -45,27 +41,5 @@
         });
     });
     
-    // Polling para obtener la respuesta
-    function pollForResponse(url) {
-        return new Promise((resolve, reject) => {
-            const interval = setInterval(() => {
-                fetch(url)
-                    .then(res => {
-                        if (res.status === 200) return res.json();
-                        if (res.status === 102 || res.status === 204) return null; // Still processing
-                        throw new Error("Error inesperado");
-                    })
-                    .then(data => {
-                        if (!data) return;  // sigue esperando
-                        clearInterval(interval);
-                        resolve(data.answer || data.response);  // adapta según cómo lo devuelvas
-                    })
-                    .catch(err => {
-                        clearInterval(interval);
-                        reject(err);
-                    });
-            }, 1000);  // intenta cada segundo
-        });
-    }
     </script>
 {% endblock %}

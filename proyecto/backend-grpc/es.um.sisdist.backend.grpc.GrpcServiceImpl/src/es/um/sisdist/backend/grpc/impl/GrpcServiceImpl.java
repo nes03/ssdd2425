@@ -15,17 +15,14 @@ import es.um.sisdist.backend.grpc.PromptRequest;
 import es.um.sisdist.backend.grpc.PromptResponse;
 import es.um.sisdist.backend.grpc.ResponseRequest;
 import es.um.sisdist.backend.grpc.ResponseResponse;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-
 import okio.Buffer;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 class GrpcServiceImpl extends GrpcServiceGrpc.GrpcServiceImplBase {
     private Logger logger;
@@ -34,9 +31,6 @@ class GrpcServiceImpl extends GrpcServiceGrpc.GrpcServiceImplBase {
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
             .build();
-
-    // Crear un ExecutorService para tareas asincrónicas
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     public GrpcServiceImpl(Logger logger) {
         super();
@@ -55,68 +49,6 @@ class GrpcServiceImpl extends GrpcServiceGrpc.GrpcServiceImplBase {
      * Recibe un codigo 202 Acceptedcon un token en la cabecera Location
      * Devuelve el token al cliente gRPC
      */
-    /*
-     * @Override
-     * public void sendPrompt(PromptRequest request, StreamObserver<PromptResponse>
-     * responseObserver) {
-     * String promptText = request.getPrompt();
-     * logger.info("prompText que se envia a llamachat = " + promptText);
-     * 
-     * // Crear la solicitud JSON con el prompt
-     * String json = "{\"prompt\": \"" + promptText + "\"}";
-     * logger.info("prompText que se envia a llamachat en json= " + json);
-     * 
-     * RequestBody body = RequestBody.create(json,
-     * MediaType.get("application/json"));
-     * // Leer y mostrar el contenido de RequestBody
-     * String bodyContent = readRequestBody(body);
-     * logger.info("Contenido del RequestBody: " + bodyContent);
-     * 
-     * // Configurara la solicitud HTTP
-     * Request requestHttp = new Request.Builder()
-     * .url("http://localhost:5020/prompt")
-     * .post(body)
-     * .build();
-     * logger.info("Enviando solicitud POST a LlamaChat con URL: " +
-     * requestHttp.url());
-     * 
-     * 
-     * // Llamar a API LlamaChat
-     * try (Response response = httpClient.newCall(requestHttp).execute()) {
-     * int statusCode = response.code();
-     * String location = response.header("Location");
-     * logger.info("HA ENTRADO A sendPormp del server status:" + statusCode +
-     * "location:" + location);
-     * if (response.code() == 202 && location != null &&
-     * location.contains("/response/")) {
-     * // Obtener el token de la cabecera "Location"
-     * String token = location.substring(location.lastIndexOf("/") + 1);
-     * System.out.println("Token extraido = " + token);
-     * 
-     * // Responder con el token
-     * PromptResponse promptResponse = PromptResponse.newBuilder()
-     * .setToken(token)
-     * .build();
-     * 
-     * // Enviar respuesta solo si no se ha enviado antes
-     * responseObserver.onNext(promptResponse);
-     * responseObserver.onCompleted();
-     * // return;
-     * } else {
-     * // Enviar error si el código de respuesta HTTP no es 202
-     * responseObserver.onError(new
-     * RuntimeException("Respuesta HTTP inesperada. Código: " + statusCode));
-     * logger.info("Respuesta HTTP inesperada. Código: " + statusCode);
-     * }
-     * } catch (IOException e) {
-     * // Enviar error en caso de excepción en la solicitud HTTP
-     * responseObserver.onError(new
-     * RuntimeException("Error al procesar la solicitud HTTP: " + e.getMessage(),
-     * e));
-     * }
-     * }
-     */
-
     @Override
     public void sendPrompt(PromptRequest request, StreamObserver<PromptResponse> responseObserver) {
         String promptText = request.getPrompt();
@@ -124,39 +56,62 @@ class GrpcServiceImpl extends GrpcServiceGrpc.GrpcServiceImplBase {
 
         // Crear la solicitud JSON con el prompt
         String json = "{\"prompt\": \"" + promptText + "\"}";
+        logger.info("prompText que se envia a llamachat en json= " + json);
 
         RequestBody body = RequestBody.create(json, MediaType.get("application/json"));
+        // Leer y mostrar el contenido de RequestBody
+        String bodyContent = readRequestBody(body);
+        logger.info("Contenido del RequestBody: " + bodyContent);
 
-        // Configurar la solicitud HTTP
+        // Configurara la solicitud HTTP
         Request requestHttp = new Request.Builder()
-                .url("http://localhost:5020/prompt")
+                .url("http://ssdd-llamachat:5020/prompt")
                 .post(body)
                 .build();
+        logger.info("Enviando solicitud POST a LlamaChat con URL: " + requestHttp.url());
 
-        // Ejecutar la solicitud HTTP en un hilo separado para no bloquear el hilo del
-        // servidor gRPC
-        executor.submit(() -> {
-            try (Response response = httpClient.newCall(requestHttp).execute()) {
-                int statusCode = response.code();
-                String location = response.header("Location");
-                if (statusCode == 202 && location != null && location.contains("/response/")) {
-                    String token = location.substring(location.lastIndexOf("/") + 1);
-                    logger.info("Token extraído = " + token);
+        // Llamar a API LlamaChat
+        try (Response response = httpClient.newCall(requestHttp).execute()) {
+            int statusCode = response.code();
+            String location = response.header("Location");
+            logger.info("HA ENTRADO A sendPrompt del server status:" + statusCode + " location:" + location);
+            if (statusCode == 202 && location != null && location.contains("/response/")) {
+                // Obtener el token de la cabecera "Location"
+                String token = location.substring(location.lastIndexOf("/") + 1);
+                System.out.println("Token extraido = " + token);
 
-                    // Respondemos con el token
-                    PromptResponse promptResponse = PromptResponse.newBuilder()
-                            .setToken(token)
-                            .build();
-                    responseObserver.onNext(promptResponse);
-                    responseObserver.onCompleted();
-                } else {
-                    responseObserver.onError(new RuntimeException("Respuesta HTTP inesperada. Código: " + statusCode));
-                }
-            } catch (IOException e) {
-                responseObserver
-                        .onError(new RuntimeException("Error al procesar la solicitud HTTP: " + e.getMessage(), e));
+                // Responder con el token
+                PromptResponse promptResponse = PromptResponse.newBuilder()
+                        .setToken(token)
+                        .build();
+
+                // Enviar respuesta solo si no se ha enviado antes
+                responseObserver.onNext(promptResponse);
+                responseObserver.onCompleted();
+                // return;
+            } else {
+                // Enviar error si el código de respuesta HTTP no es 202
+                // responseObserver.onError(new RuntimeException("Respuesta HTTP inesperada.
+                // Código: " + statusCode));
+                // logger.info("Respuesta HTTP inesperada. Código: " + statusCode);
+                logger.warning("Respuesta HTTP inesperada. Código: " + statusCode);
+
+                responseObserver.onError(
+                        Status.FAILED_PRECONDITION
+                                .withDescription("Respuesta HTTP inesperada. Código: " + statusCode)
+                                .asRuntimeException());
             }
-        });
+        } catch (IOException e) {
+            // Enviar error en caso de excepción en la solicitud HTTP
+            // responseObserver.onError(new RuntimeException("Error al procesar la solicitud
+            // HTTP: " + e.getMessage(), e));
+            logger.severe("Error al procesar la solicitud HTTP: " + e.getMessage());
+            responseObserver.onError(
+                    Status.UNAVAILABLE
+                            .withDescription("Error al procesar la solicitud HTTP")
+                            .withCause(e)
+                            .asRuntimeException());
+        }
     }
 
     public static String readRequestBody(RequestBody body) {
@@ -183,7 +138,7 @@ class GrpcServiceImpl extends GrpcServiceGrpc.GrpcServiceImplBase {
 
         while (true) {
             Request requestHttp = new Request.Builder()
-                    .url("http://localhost:5020" + "/response/" + token)
+                    .url("http://ssdd-llamachat:5020" + "/response/" + token)
                     .get()
                     .build();
 

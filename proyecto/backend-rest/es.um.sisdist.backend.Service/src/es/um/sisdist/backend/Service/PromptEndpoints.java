@@ -42,8 +42,16 @@ public class PromptEndpoints {
         try {
             // Enviar el prompt y esperar la respuesta (manejado internamente)
             impl.fetchPromptResponse(request.getPrompt());
+
+            // Ahora la respuesta debería estar disponible
             String response = impl.getLastResponse_grpc();
-            return Response.ok(new PromptResponse(response)).build();
+            if (response == null || response.isEmpty()) {
+                return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                        .entity("La respuesta aún está siendo procesada o ha fallado.")
+                        .build();
+            }
+            return Response.ok(new PromptResponse(response)).build(); // Devolver la respuesta
+
         } catch (Exception e) {
             return Response.serverError().entity("Error al procesar el prompt: " + e.getMessage()).build();
         }
