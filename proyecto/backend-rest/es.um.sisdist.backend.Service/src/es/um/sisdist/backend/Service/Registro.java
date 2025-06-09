@@ -1,10 +1,10 @@
 package es.um.sisdist.backend.Service;
 
-
 import es.um.sisdist.backend.Service.impl.AppLogicImpl;
 import es.um.sisdist.models.RegisterUser;
 import es.um.sisdist.models.UserDTO;
 import es.um.sisdist.models.UserDTOUtils;
+import es.um.sisdist.backend.dao.models.User;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -13,22 +13,33 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 
-// POJO, no interface no extends
-
 @Path("/Registro")
-public class Registro
-{
+public class Registro {
     private AppLogicImpl impl = AppLogicImpl.getInstance();
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response registerUser(RegisterUser request) {
-        // Crear un nuevo usuario a partir de los datos de la solicitud
-        UserDTO user = new UserDTO(request.getEmail(), request.getEmail(), request.getPassword(), request.getName(), "prueba", 0);
+        // Comprobar si el usuario ya existe por email
+        if (impl.getUserByEmail(request.getEmail()).isPresent()) {
+            return Response.status(Status.CONFLICT)
+                    .entity("El usuario ya existe").build();
+        }
 
-        // Retornar la respuesta
-        return Response.ok(UserDTOUtils.fromDTO(user)).build();
+        // Crear el usuario real (modelo User)
+        User user = new User();
+        user.setId(request.getName());
+        user.setEmail(request.getEmail());
+        user.setPassword_hash(es.um.sisdist.backend.dao.models.utils.UserUtils.md5pass(request.getPassword()));
+        user.setName(request.getName());
+        user.setToken(""); // O genera un token si lo usas
+        user.setVisits(0);
+
+        // Guardar el usuario en la base de datos
+        impl.getUserDAO().save(user);
+
+        // Devolver el DTO del usuario creado
+        return Response.ok(UserDTOUtils.toDTO(user)).build();
     }
 }
-

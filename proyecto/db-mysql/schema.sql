@@ -10,7 +10,14 @@ CREATE TABLE IF NOT EXISTS users(
 	visits int,
 	PRIMARY KEY(id)
 );
-
+CREATE TABLE IF NOT EXISTS conversations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(50),
+    prompt TEXT NOT NULL,
+    response TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
 -- Para búsquedas con email
 CREATE INDEX user_email_idx ON users (email);
 

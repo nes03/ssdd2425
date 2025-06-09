@@ -36,18 +36,19 @@ def index():
 def signup():
     form = SignUpForm(request.form if request.method == 'POST' else None)
     if request.method == "POST" and form.validate():
-        # Enviar los datos del formulario al backend para registrar nuevo usuario
-        #response = requests.post(f'{BACKEND_URL}/api/signup', json={
-        response = requests.post(f'http://localhost:5010/api/signup', json={
-            "name": form.name.data,
-            "email": form.email.data,
-            "password": form.password.data
-        })
-        if response.status_code == 201:
-            flash("¡Registro completado! Puedes inciar sesión.", "success") # Mensaje temporal
-            return redirect(url_for('login'))
+        response = requests.post(
+            'http://backend-rest:8080/Service/Registro',  
+            json={
+                "name": form.name.data,
+                "email": form.email.data,
+                "password": form.password.data
+            }
+        )
+        if response.status_code == 200:
+            flash("¡Registro completado! Puedes iniciar sesión.", "success")
+            return redirect(url_for('signup'))
         else:
-            flash("Registro no completado. Pruebe de nuevo. Status Code: {response.status_code}. Mensaje: {response.text}", "danger") # Mensaje temporal
+            flash(f"Registro no completado. Código: {response.status_code}. Mensaje: {response.text}", "danger")
     return render_template('signup.html', form=form)
 
 #Ruta para gestionar Login de usuarios registrados
@@ -58,11 +59,13 @@ def login():
     error = None
     form = LoginForm(None if request.method != 'POST' else request.form)
     if request.method == "POST" and form.validate():
-        #response = requests.post(f'{BACKEND_URL}/checkLogin', json={
-        response = requests.post(f'http://localhost:5010/checkLogin', json={
-            "email": form.email.data,
-            "password": form.password.data
-        })
+        response = requests.post(
+            'http://backend-rest:8080/Service/checkLogin',  
+            json={
+                "email": form.email.data,
+                "password": form.password.data
+            }
+        )
         if response.status_code == 200:
             user_data = response.json()
             user = User(user_data["id"], user_data["name"], form.email.data, form.password.data)

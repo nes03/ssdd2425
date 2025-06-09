@@ -50,6 +50,8 @@ public class PromptEndpoints {
                         .entity("La respuesta aún está siendo procesada o ha fallado.")
                         .build();
             }
+            String userId = request.getUserId(); // Momentaneo, tenemos que poner UserId de alguna forma
+            impl.saveConversation(userId, request.getPrompt(), response);
             return Response.ok(new PromptResponse(response)).build(); // Devolver la respuesta
 
         } catch (Exception e) {
@@ -75,6 +77,7 @@ public class PromptEndpoints {
 
     public static class PromptRequest {
         private String prompt;
+        private String userId; // Añadido para identificar al usuario
 
         public PromptRequest() {
         }
@@ -85,6 +88,14 @@ public class PromptEndpoints {
 
         public void setPrompt(String prompt) {
             this.prompt = prompt;
+        }
+
+        public String getUserId() {
+            return userId;
+        }
+
+        public void setUserId(String userId) {
+            this.userId = userId;
         }
     }
 

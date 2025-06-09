@@ -8,6 +8,10 @@ import es.um.sisdist.backend.dao.IDAOFactory;
 import es.um.sisdist.backend.dao.models.User;
 import es.um.sisdist.backend.dao.models.utils.UserUtils;
 import es.um.sisdist.backend.dao.user.IUserDAO;
+import es.um.sisdist.backend.dao.models.Conversation;
+import es.um.sisdist.backend.dao.*;
+import es.um.sisdist.backend.dao.conversation.IConversationDAO;
+// import es.um.sisdist.backend.dao.conversation.IConversationDAO;
 import es.um.sisdist.backend.grpc.GrpcServiceGrpc;
 import es.um.sisdist.backend.grpc.GrpcServiceClient;
 import es.um.sisdist.backend.grpc.PingRequest;
@@ -22,7 +26,7 @@ public class AppLogicImpl {
     private static final Logger logger = Logger.getLogger(AppLogicImpl.class.getName());
     private final ManagedChannel channel;
     private final GrpcServiceGrpc.GrpcServiceBlockingStub blockingStub;
-
+    private String lastPromptResponse; // Almacena la última respuesta del prompt
     private final GrpcServiceClient grpcClient; // Instancia de GrpcServiceClient
 
     private static final AppLogicImpl instance = new AppLogicImpl();
@@ -30,14 +34,19 @@ public class AppLogicImpl {
     private final IDAOFactory daoFactory;
     private final IUserDAO dao;
 
+    private final IConversationDAO conversationDao;
+
     private AppLogicImpl() {
         daoFactory = new DAOFactoryImpl();
         Optional<String> backend = Optional.ofNullable(System.getenv("DB_BACKEND"));
+        grpcClient = new GrpcServiceClient();
 
         if (backend.isPresent() && backend.get().equals("mongo")) {
             dao = daoFactory.createMongoUserDAO();
+            conversationDao = daoFactory.createSQLConversationDAO();
         } else {
             dao = daoFactory.createSQLUserDAO();
+            conversationDao = daoFactory.createSQLConversationDAO();
         }
 
         var grpcServerName = Optional.ofNullable(System.getenv("GRPC_SERVER"));
@@ -64,6 +73,18 @@ public class AppLogicImpl {
 
     public Optional<User> getUserById(String userId) {
         return dao.getUserById(userId);
+    }
+
+    public IUserDAO getUserDAO() {
+        return dao;
+    }
+
+    public void saveConversation(String userId, String prompt, String response) {
+        Conversation conv = new Conversation();
+        conv.setUserId(userId);
+        conv.setPrompt(prompt);
+        conv.setResponse(response);
+        conversationDao.save(conv);
     }
 
     public boolean ping(int v) {
