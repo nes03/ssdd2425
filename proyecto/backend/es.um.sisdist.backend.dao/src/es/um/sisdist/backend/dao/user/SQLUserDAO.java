@@ -79,8 +79,9 @@ public class SQLUserDAO implements IUserDAO {
 
     @Override
     public void save(User user) {
+        PreparedStatement stm = null;
         try {
-            PreparedStatement stm = conn.get().prepareStatement(
+            stm = conn.get().prepareStatement(
                     "INSERT INTO users (id, email, password_hash, name, token, visits) VALUES (?, ?, ?, ?, ?, ?)");
             stm.setString(1, user.getId());
             stm.setString(2, user.getEmail());
@@ -89,8 +90,15 @@ public class SQLUserDAO implements IUserDAO {
             stm.setString(5, user.getToken());
             stm.setInt(6, user.getVisits());
             stm.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e); // Lanza como RuntimeException
+        } finally {
+            if (stm != null) {
+                try {
+                    stm.close();
+                } catch (Exception ignore) {
+                }
+            }
         }
     }
 }

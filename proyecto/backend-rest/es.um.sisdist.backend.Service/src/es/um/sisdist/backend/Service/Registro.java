@@ -1,5 +1,7 @@
 package es.um.sisdist.backend.Service;
 
+import java.sql.SQLException;
+
 import es.um.sisdist.backend.Service.impl.AppLogicImpl;
 import es.um.sisdist.models.RegisterUser;
 import es.um.sisdist.models.UserDTO;
@@ -37,7 +39,13 @@ public class Registro {
         user.setVisits(0);
 
         // Guardar el usuario en la base de datos
-        impl.getUserDAO().save(user);
+        try {
+            impl.getUserDAO().save(user);
+        } catch (Exception e) { // <-- Cambia SQLException por Exception
+            return Response.status(Status.INTERNAL_SERVER_ERROR)
+                    .entity("Error al guardar el usuario: " + e.getMessage())
+                    .build();
+        }
 
         // Devolver el DTO del usuario creado
         return Response.ok(UserDTOUtils.toDTO(user)).build();

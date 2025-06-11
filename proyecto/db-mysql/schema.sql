@@ -11,10 +11,11 @@ CREATE TABLE IF NOT EXISTS users(
 	PRIMARY KEY(id)
 );
 CREATE TABLE IF NOT EXISTS conversations (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    dialogue_id VARCHAR(50) PRIMARY KEY,
     user_id VARCHAR(50),
-    prompt TEXT NOT NULL,
-    response TEXT,
+    dname VARCHAR(100),
+    status ENUM('READY', 'BUSY', 'FINISHED') DEFAULT 'READY',
+    dialogue JSON, -- array de objetos {prompt, answer, timestamp, next}
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
