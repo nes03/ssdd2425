@@ -7,4 +7,9 @@
 <p class="lead">
     Create a Login page using Flask :)
 </p>
+
+<div class="alert alert-info mt-3">
+  <p>¿Autenticado?: {{ current_user.is_authenticated }}</p>
+  <p>Usuario: {{ current_user.email if current_user.is_authenticated else "No autenticado" }}</p>
+</div>
 {% endblock %}

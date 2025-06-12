@@ -1,9 +1,16 @@
 package es.um.sisdist.backend.dao.conversation;
 
-import es.um.sisdist.backend.dao.models.Conversation;
-import java.sql.*;
-import java.util.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
+
+import es.um.sisdist.backend.dao.models.Conversation;
 import es.um.sisdist.backend.dao.utils.Lazy;
 
 public class SQLConversationDAO implements IConversationDAO {
@@ -26,12 +33,27 @@ public class SQLConversationDAO implements IConversationDAO {
 
     @Override
     public void save(Conversation conversation) {
+        /*
+         * try {
+         * PreparedStatement stm = conn.get().prepareStatement(
+         * "INSERT INTO conversations (user_id, prompt, response) VALUES (?, ?, ?)");
+         * stm.setString(1, conversation.getUserId());
+         * stm.setString(2, conversation.getPrompt());
+         * stm.setString(3, conversation.getResponse());
+         * stm.executeUpdate();
+         * } catch (SQLException e) {
+         * e.printStackTrace();
+         * }
+         */
+
         try {
             PreparedStatement stm = conn.get().prepareStatement(
-                    "INSERT INTO conversations (user_id, prompt, response) VALUES (?, ?, ?)");
-            stm.setString(1, conversation.getUserId());
-            stm.setString(2, conversation.getPrompt());
-            stm.setString(3, conversation.getResponse());
+                    "INSERT INTO conversations (dialogue_id, user_id, dname, status, dialogue) VALUES (?, ?, ?, ?, ?)");
+            stm.setString(1, conversation.getDialogueId());
+            stm.setString(2, conversation.getUserId());
+            stm.setString(3, conversation.getDname());
+            stm.setString(4, conversation.getStatus()); // 'READY', 'BUSY', 'FINISHED'
+            stm.setString(5, conversation.getDialogue()); // JSON como String
             stm.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -55,6 +77,21 @@ public class SQLConversationDAO implements IConversationDAO {
         return list;
     }
 
+    public Conversation findByDialogueId(String dialogueId) {
+        try {
+            PreparedStatement stm = conn.get().prepareStatement(
+                    "SELECT * FROM conversations WHERE dialogue_id = ?");
+            stm.setString(1, dialogueId);
+            ResultSet rs = stm.executeQuery();
+            if (rs.next()) {
+                return createConversation(rs);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     @Override
     public Conversation findById(int id) {
         try {
@@ -73,11 +110,15 @@ public class SQLConversationDAO implements IConversationDAO {
 
     private Conversation createConversation(ResultSet rs) throws SQLException {
         Conversation c = new Conversation();
-        c.setId(rs.getInt("id"));
+        // c.setId(rs.getInt("id"));
+        c.setDialogueId(rs.getString("dialogue_id"));
         c.setUserId(rs.getString("user_id"));
         c.setPrompt(rs.getString("prompt"));
         c.setResponse(rs.getString("response"));
         c.setCreatedAt(rs.getTimestamp("created_at"));
+        c.setDname(rs.getString("dname"));
+        c.setStatus(rs.getString("status"));
+        c.setDialogue(rs.getString("dialogue"));
         return c;
     }
 }

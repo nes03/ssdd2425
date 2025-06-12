@@ -41,19 +41,31 @@ public class PromptEndpoints {
     public Response handlePrompt(PromptRequest request) {
         try {
             // Enviar el prompt y esperar la respuesta (manejado internamente)
-            impl.fetchPromptResponse(request.getPrompt());
+
+            // impl.fetchPromptResponse(request.getPrompt());
+            // String dialogueId = impl.fetchPromptResponse(request.getPrompt());
 
             // Ahora la respuesta debería estar disponible
-            String response = impl.getLastResponse_grpc();
-            if (response == null || response.isEmpty()) {
-                return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                        .entity("La respuesta aún está siendo procesada o ha fallado.")
-                        .build();
-            }
-            String userId = request.getUserId(); // Momentaneo, tenemos que poner UserId de alguna forma
-            impl.saveConversation(userId, request.getPrompt(), response);
-            return Response.ok(new PromptResponse(response)).build(); // Devolver la respuesta
+            /*
+             * String response = impl.getLastResponse_grpc();
+             * if (response == null || response.isEmpty()) {
+             * return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+             * .entity("La respuesta aún está siendo procesada o ha fallado.")
+             * .build();
+             * }
+             * String userId = request.getUserId(); // Momentaneo, tenemos que poner UserId
+             * de alguna forma
+             * impl.saveConversation(userId, dialogueId, request.getPrompt(), response);
+             * return Response.ok(new PromptResponse(response)).build(); // Devolver la
+             * respuesta
+             */
+            String response = impl.fetchPromptResponseSync(request.getPrompt());
 
+            String userId = request.getUserId(); // Usa el userId que recibes en el JSON
+            String dialogueId = java.util.UUID.randomUUID().toString(); // Genera un dialogueId único
+            impl.saveConversation(userId, dialogueId, request.getPrompt(), response);
+
+            return Response.ok(new PromptResponse(response)).build();
         } catch (Exception e) {
             return Response.serverError().entity("Error al procesar el prompt: " + e.getMessage()).build();
         }

@@ -70,6 +70,7 @@ def login():
             user_data = response.json()
             user = User(user_data["id"], user_data["name"], form.email.data, form.password.data)
             login_user(user, remember=form.remember_me.data)
+            users.append(user)
             return redirect(url_for('index'))
         else:
             error = 'Credenciales no válidas. Por favor, pruebe de nuevo.'
@@ -137,7 +138,7 @@ def stats():
 @login_manager.user_loader
 def load_user(user_id):
     for user in users:
-        if user.id == int(user_id):
+        if str(user.id) == user_id:
             return user
     return None
 @app.route("/prompt", methods=["GET", "POST"])

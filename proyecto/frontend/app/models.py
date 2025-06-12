@@ -16,13 +16,17 @@ class User(UserMixin):
         self.password = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
     def check_password(self, password):
-        return self.password == hashlib.sha256(password).hexdigest()
+        return self.password == hashlib.sha256(password.encode('utf-8')).hexdigest()
 
+    @staticmethod
     def get_user(email):
         for user in users:
             if user.email == email:
                 return user
-            return None
+        return None
+    
+    def get_id(self):
+        return str(self.id)
 
     def __repr__(self):
         return '<User {}>'.format(self.email)
