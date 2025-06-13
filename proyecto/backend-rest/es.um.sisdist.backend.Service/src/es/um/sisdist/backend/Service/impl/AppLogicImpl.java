@@ -20,6 +20,9 @@ import es.um.sisdist.backend.grpc.ResponseResponse;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+
 public class AppLogicImpl {
     private static final Logger logger = Logger.getLogger(AppLogicImpl.class.getName());
     private final ManagedChannel channel;
@@ -83,6 +86,16 @@ public class AppLogicImpl {
         conv.setDialogueId(dialogueId);
         conv.setPrompt(prompt);
         conv.setResponse(response);
+
+        Gson gson = new Gson();
+        JsonObject obj = new JsonObject();
+        obj.addProperty("prompt", prompt); // Añades el prompt al JSON
+        obj.addProperty("answer", response); // Añades la respuesta al JSON
+        String dialogueJson = gson.toJson(obj);
+        conv.setDialogue(dialogueJson);
+
+        conv.setDname("Práctica SSDD 24/25");
+        conv.setStatus("FINISHED");
         conversationDao.save(conv);
     }
 

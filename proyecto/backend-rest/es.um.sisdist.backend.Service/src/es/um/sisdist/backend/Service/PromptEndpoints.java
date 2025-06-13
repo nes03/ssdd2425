@@ -62,6 +62,7 @@ public class PromptEndpoints {
             String response = impl.fetchPromptResponseSync(request.getPrompt());
 
             String userId = request.getUserId(); // Usa el userId que recibes en el JSON
+            System.out.println("UserId recibido en backend: " + userId);
             String dialogueId = java.util.UUID.randomUUID().toString(); // Genera un dialogueId único
             impl.saveConversation(userId, dialogueId, request.getPrompt(), response);
 
