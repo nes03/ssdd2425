@@ -71,6 +71,7 @@ def login():
             user = User(user_data["id"], user_data["name"], form.email.data, form.password.data)
             login_user(user, remember=form.remember_me.data)
             users.append(user)
+
             return redirect(url_for('index'))
         else:
             error = 'Credenciales no válidas. Por favor, pruebe de nuevo.'
@@ -142,13 +143,14 @@ def load_user(user_id):
             return user
     return None
 @app.route("/prompt", methods=["GET", "POST"])
+@login_required
 def prompt():
     if request.method == "POST":
         prompt = request.form.get("prompt")
 
         # Enviar el prompt al API REST en Java
         try:
-            response = requests.post(BACKEND_URL, json={"prompt": prompt})
+            response = requests.post(BACKEND_URL, json={"prompt": prompt, "userId": current_user.id})
             if response.status_code == 200:
                 try:
                     data = response.json()
@@ -168,7 +170,13 @@ def prompt():
 @app.route("/Service/prompt", methods=["POST"])
 def proxy_prompt_to_backend():
     try:
-        response = requests.post("http://backend-rest:8080/Service/prompt", json=request.get_json())
+        data = request.get_json()
+        if not data:
+            return {"error": "No JSON received"}, 400
+        # Añadir userId del servidor si no viene
+        if 'userId' not in data or data['userId'] is None:
+            data['userId'] = current_user.id
+        response = requests.post("http://backend-rest:8080/Service/prompt", json=data)
         return (response.text, response.status_code, response.headers.items())
     except Exception as e:
         return {"error": str(e)}, 500
