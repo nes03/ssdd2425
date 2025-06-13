@@ -1,4 +1,3 @@
-
 services:
 
   ssdd-frontend:
@@ -22,7 +21,7 @@ services:
   db-mysql:
     build: db-mysql/.
     ports:
-      - 3306
+      - 3306:3306
     env_file: sql.env
     healthcheck:
       test: echo 'SELECT 1' | mysql -h db-mysql -u root -p$$MYSQL_ROOT_PASSWORD $$MYSQL_DATABASE
@@ -43,8 +42,15 @@ services:
   backend-grpc:
     image: dsevilla/ssdd-backend-grpc:1.0
     ports:
-      - 50051
+      - 50051:50051
     env_file: sql.env
     depends_on:
       db-mysql:
         condition: service_healthy
+
+  backend-rest-externo:
+    build: backend-rest-externo/.
+    ports:
+      - 8180:8180
+    depends_on:
+      - backend-grpc

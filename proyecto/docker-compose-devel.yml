@@ -7,7 +7,6 @@ services:
     ports:
       - 5010:5010
     env_file: sql.env
-    
     environment:
       - FLASK_APP=app/app.py
       - FLASK_DEBUG=true
@@ -29,7 +28,7 @@ services:
       - 3306:3306
     env_file: sql.env
     healthcheck:
-      test: echo 'SELECT 1' | mysql -h db-mysql -u root -p$$MYSQL_ROOT_PASSWORD $$MYSQL_DATABASE
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_ROOT_PASSWORD"]
       interval: 10s
       timeout: 10s
       retries: 7
@@ -48,6 +47,15 @@ services:
     build: backend-grpc/es.um.sisdist.backend.grpc.GrpcServiceImpl/.
     ports:
       - 50051:50051
+    env_file: sql.env
+    depends_on:
+      db-mysql:
+        condition: service_healthy
+
+  backend-rest-externo:
+    build: backend-rest-externo/.
+    ports:
+      - 8180:8180
     env_file: sql.env
     depends_on:
       db-mysql:

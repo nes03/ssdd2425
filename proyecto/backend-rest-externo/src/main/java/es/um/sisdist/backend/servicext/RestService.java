@@ -8,12 +8,14 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import es.um.sisdist.backend.grpc.GrpcServiceClient;
 
@@ -48,70 +50,66 @@ public class RestService {
 	public ResponseEntity<String> createPrompt(
 			@PathVariable String userId,
 			@RequestBody String prompt,
+			@RequestHeader("User") String userHeader,
 			@RequestHeader("Date") String date,
 			@RequestHeader("Auth-Token") String authToken) throws NoSuchAlgorithmException {
-		// HttpServletRequest request) throws NoSuchAlgorithmException {
-		if (!validateAuthToken(date, authToken, userId))
+
+		if (!validateAuthToken(date, authToken, userHeader))
 			return ResponseEntity.status(401).body("Unauthorized");
 
-		// Crear el prompt y recibir el token
 		grpcServiceClient.sendPromptAndFetchResponse(prompt);
 
-		// Retornar un código 202 Accepted con el token de la conversación
-		return ResponseEntity.status(202).header("Location", "/u/" + userId + "/dialogue/response/" + "some_token")
+		return ResponseEntity.status(202)
+				.header("Location", "/u/" + userHeader + "/dialogue/response/" + "some_token")
 				.body("Prompt accepted");
 	}
 
-	// Método para continuar la conversación con un token
-	// @GetMapping("/response/{token}")
+	@DeleteMapping("/u/{userId}/dialogue/{token}")
+	public ResponseEntity<String> deleteConversation(
+			@PathVariable String userId,
+			@PathVariable String token,
+			@RequestHeader("User") String userHeader,
+			@RequestHeader("Date") String date,
+			@RequestHeader("Auth-Token") String authToken) throws NoSuchAlgorithmException {
+		if (!validateAuthToken(date, authToken, userHeader))
+			return ResponseEntity.status(401).body("Unauthorized");
+		return ResponseEntity.ok("Conversación eliminada");
+	}
+
 	@GetMapping("/u/{userId}/dialogue/response/{token}")
 	public ResponseEntity<String> continueConversation(
 			@PathVariable String token,
-			@PathVariable String userId, // Se agrega userId como un parámetro en la URL
+			@PathVariable String userId,
+			@RequestHeader("User") String userHeader,
 			@RequestHeader("Date") String date,
 			@RequestHeader("Auth-Token") String authToken) throws NoSuchAlgorithmException {
 
-		// Validar el token de autenticación
-		if (!validateAuthToken(date, authToken, userId))
+		if (!validateAuthToken(date, authToken, userHeader))
 			return ResponseEntity.status(401).body("Unauthorized");
 
-		// Crear un CountDownLatch para sincronización
 		CountDownLatch latch = new CountDownLatch(1);
+		String[] responseHolder = new String[1];
+		grpcServiceClient.fetchResponse(token, latch, responseHolder);
 
-		// Llamar a fetchResponse que hace el trabajo en segundo plano
-		grpcServiceClient.fetchResponse(token, latch);
-
-		// Esperar a que el proceso se complete
 		try {
-			latch.await(); // Esto espera hasta que el latch se decremente
+			latch.await();
 		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt(); // Manejar la interrupción
+			Thread.currentThread().interrupt();
 			return ResponseEntity.status(500).body("Error during processing");
 		}
 
-		// Si la respuesta está lista, devolverla
-		String response = grpcServiceClient.getResponseForREST(); // Necesitas implementar esto
-
-		// Verificar si la respuesta es nula o vacía
+		String response = responseHolder[0];
 		if (response != null && !response.isEmpty())
-			return ResponseEntity.ok(response); // Responde con 200 OK y la respuesta
+			return ResponseEntity.ok(response);
 		else
-			return ResponseEntity.status(204).build(); // No Content en caso de que aún no haya respuesta
-
+			return ResponseEntity.status(204).build();
 	}
 
 	// Validar el AuthToken
 	private boolean validateAuthToken(String date, String authToken, String userId)
 			throws NoSuchAlgorithmException {
-		// Por ejemplo, si la URL está construida de alguna forma, puedes crearla como
-		// lo hagas en tu lógica
-		String url = "http://localhost:8180/u/" + userId + "/dialogue"; // ejemplo de URL
-
-		// Generar el token de autenticación usando la URL, la fecha y el userId
+		String url = ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString();
 		String userToken = generateAuthToken(url, date, userId);
-
-		// Comparar el token generado con el que se ha enviado en el encabezado de la
-		// solicitud
 		return userToken.equals(authToken);
 	}
 

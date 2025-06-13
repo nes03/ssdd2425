@@ -23,6 +23,9 @@ backend-grpc:
 backend-rest:
 	$(MAKE) -C $@
 
+backend-rest-externo:
+	$(MAKE) -C $@
+	
 clean:
 	for i in $(SUBDIRS); do \
 		$(MAKE) -C $$i $@; \

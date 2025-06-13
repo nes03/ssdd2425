@@ -56,3 +56,10 @@ services:
     depends_on:
       db-mongo:
         condition: service_healthy
+
+  backend-rest-externo:
+    build: backend-rest-externo/.
+    ports:
+      - 8180:8180
+    depends_on:
+      - backend-grpc
