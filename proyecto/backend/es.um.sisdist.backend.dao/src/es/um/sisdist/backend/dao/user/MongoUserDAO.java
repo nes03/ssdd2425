@@ -68,4 +68,22 @@ public class MongoUserDAO implements IUserDAO {
         Optional<User> user = Optional.ofNullable(collection.get().find(eq("email", id)).first());
         return user;
     }
+
+    @Override
+    public int getUserVisits(String userId) {
+
+        return 0;
+    }
+
+    @Override
+    public void incrementVisits(String userId) {
+
+        throw new UnsupportedOperationException("Incrementar visitas en MongoDB no implementado");
+    }
+
+    @Override
+    public int countUsers() {
+
+        return (int) collection.get().countDocuments();
+    }
 }

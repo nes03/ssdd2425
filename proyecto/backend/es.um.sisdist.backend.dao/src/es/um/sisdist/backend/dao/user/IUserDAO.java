@@ -11,4 +11,10 @@ public interface IUserDAO {
     public Optional<User> getUserByEmail(String id);
 
     void save(User user) throws SQLException;
+
+    void incrementVisits(String userId);
+
+    int countUsers();
+
+    int getUserVisits(String userId);
 }

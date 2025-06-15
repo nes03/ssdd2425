@@ -52,8 +52,8 @@ public class SQLConversationDAO implements IConversationDAO {
             stm.setString(1, conversation.getDialogueId());
             stm.setString(2, conversation.getUserId());
             stm.setString(3, conversation.getDname());
-            stm.setString(4, conversation.getStatus()); // 'READY', 'BUSY', 'FINISHED'
-            stm.setString(5, conversation.getDialogue()); // JSON como String
+            stm.setString(4, conversation.getStatus());
+            stm.setString(5, conversation.getDialogue());
             stm.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -110,15 +110,56 @@ public class SQLConversationDAO implements IConversationDAO {
 
     private Conversation createConversation(ResultSet rs) throws SQLException {
         Conversation c = new Conversation();
-        // c.setId(rs.getInt("id"));
         c.setDialogueId(rs.getString("dialogue_id"));
         c.setUserId(rs.getString("user_id"));
-        c.setPrompt(rs.getString("prompt"));
-        c.setResponse(rs.getString("response"));
-        c.setCreatedAt(rs.getTimestamp("created_at"));
         c.setDname(rs.getString("dname"));
         c.setStatus(rs.getString("status"));
         c.setDialogue(rs.getString("dialogue"));
+        c.setCreatedAt(rs.getTimestamp("created_at"));
         return c;
+    }
+
+    @Override
+    public boolean deleteByUserIdAndDialogueId(String userId, String dialogueId) {
+        try {
+            String sql = "DELETE FROM conversations WHERE user_id = ? AND dialogue_id = ?";
+            try (PreparedStatement stmt = conn.get().prepareStatement(sql)) {
+                stmt.setString(1, userId);
+                stmt.setString(2, dialogueId);
+                int affected = stmt.executeUpdate();
+                return affected > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // Cuenta todas las conversaciones
+    @Override
+    public int countConversations() {
+        try (PreparedStatement stm = conn.get().prepareStatement("SELECT COUNT(*) FROM conversations")) {
+            ResultSet rs = stm.executeQuery();
+            if (rs.next())
+                return rs.getInt(1);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    // Cuenta conversaciones de un usuario
+    @Override
+    public int countConversationsByUser(String userId) {
+        try (PreparedStatement stm = conn.get()
+                .prepareStatement("SELECT COUNT(*) FROM conversations WHERE user_id = ?")) {
+            stm.setString(1, userId);
+            ResultSet rs = stm.executeQuery();
+            if (rs.next())
+                return rs.getInt(1);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
     }
 }

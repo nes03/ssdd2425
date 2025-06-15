@@ -1,9 +1,10 @@
-<!-- stats.html -->
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-5">
     <h2>Estadísticas</h2>
-    <p><strong>Usuarios registrados:</strong> 120</p>
-    <p><strong>Conversaciones totales:</strong> 450</p>
+    <p><strong>Usuarios registrados:</strong> {{ stats.total_users }}</p>
+    <p><strong>Conversaciones totales:</strong> {{ stats.total_conversations }}</p>
+    <p><strong>Visitas de tu usuario:</strong> {{ stats.user_visits }}</p>
+    <p><strong>Tus conversaciones:</strong> {{ stats.user_conversations }}</p>
 </div>
 {% endblock %}

@@ -3,6 +3,7 @@ from flask_login import LoginManager, login_manager, current_user, login_user, l
 from forms import LoginForm, SignUpForm
 from flask import jsonify,request, render_template
 import requests
+import json
 import os
 
 # Usuarios
@@ -10,6 +11,7 @@ from models import users, User
 
 # Login
 from forms import LoginForm
+from datetime import datetime
 
 app = Flask(__name__, static_url_path='') # Inicializar Flask
 login_manager = LoginManager() # Configurar Flask-Login para gestionar sesiones de usuario
@@ -30,6 +32,23 @@ def serve_static(path):
 def index():
     return render_template('index.html')
 
+@app.template_filter('datetimeformat')
+def datetimeformat(value, format='%Y-%m-%d %H:%M:%S'):
+    if not value:
+        return ""
+    # Si ya es datetime
+    if isinstance(value, datetime):
+        return value.strftime(format)
+    # Si es string tipo ISO o con espacio
+    if isinstance(value, str):
+        for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+            try:
+                dt = datetime.strptime(value[:19], fmt)
+                return dt.strftime(format)
+            except Exception:
+                continue
+        return value  # Si no se puede parsear, muestra el string tal cual
+    return str(value)
 
 #Ruta para gestionar Registro de nuevos usuarios
 @app.route('/signup', methods=['GET', 'POST'])
@@ -116,23 +135,39 @@ def logout():
 
 # Ruta para mostrar los logs de conversaciones
 @app.route('/logs', methods=['GET', 'POST'])
+@login_required
 def logs():
-    if not current_user:
-        flash("Acceso denegado", "danger")
-        return redirect(url_for('index'))
-    response = requests.get(f'http://localhost:8080/api/logs')
-    logs = response.json() if response.status_code == 200 else []
+    user_id = current_user.id
+    url_base = f'http://backend-rest:8080/Service/u/{user_id}/dialogue'
+
     if request.method == 'POST':
-        log_id = request.form.get('log_id')
-        requests.delete(f'http://localhost:8080/api/logs/{log_id}')
-        flash("Log eliminado correctamente", "success")
+        dialogue_id = request.form.get('dialogue_id')
+        if dialogue_id:
+            url_delete = f"{url_base}/{dialogue_id}"
+            try:
+                requests.delete(url_delete)
+            except Exception as e:
+                flash(f"Error al borrar: {e}", "danger")
         return redirect(url_for('logs'))
-    return render_template('logs.html', logs=logs)
+
+    # GET: obtener conversaciones
+    response = requests.get(url_base)
+    conversaciones = response.json() if response.status_code == 200 else []
+    # Decodifica el JSON del campo dialogue
+    for conv in conversaciones:
+        try:
+            conv['dialogue_obj'] = json.loads(conv['dialogue'])
+        except Exception:
+            conv['dialogue_obj'] = {}
+
+    return render_template('logs.html', conversaciones=conversaciones)
 
 # Ruta para ver estadisticas
 @app.route('/stats')
+@login_required
 def stats():
-    response = requests.get(f'http://localhost:8080/api/stats')
+    user_id = current_user.id
+    response = requests.get(f'http://backend-rest:8080/Service/stats', params={"userId": user_id})
     stats_data = response.json() if response.status_code == 200 else {}
     return render_template('stats.html', stats=stats_data)
 

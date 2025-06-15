@@ -3,7 +3,7 @@ package es.um.sisdist.backend.Service.impl;
 
 import java.util.Optional;
 import java.util.logging.Logger;
-
+import java.util.List;
 import es.um.sisdist.backend.dao.DAOFactoryImpl;
 import es.um.sisdist.backend.dao.IDAOFactory;
 import es.um.sisdist.backend.dao.conversation.IConversationDAO;
@@ -81,22 +81,14 @@ public class AppLogicImpl {
         return dao;
     }
 
-    public void saveConversation(String userId, String dialogueId, String prompt, String response) {
+    public void saveConversation(String userId, String dialogueId, String dname, String status, String dialogue) {
         Conversation conv = new Conversation();
         conv.setUserId(userId);
         conv.setDialogueId(dialogueId);
-        conv.setPrompt(prompt);
-        conv.setResponse(response);
-
-        Gson gson = new Gson();
-        JsonObject obj = new JsonObject();
-        obj.addProperty("prompt", prompt); // Añades el prompt al JSON
-        obj.addProperty("answer", response); // Añades la respuesta al JSON
-        String dialogueJson = gson.toJson(obj);
-        conv.setDialogue(dialogueJson);
-
-        conv.setDname("Práctica SSDD 24/25");
-        conv.setStatus("FINISHED");
+        conv.setDname(dname);
+        conv.setStatus(status);
+        conv.setDialogue(dialogue);
+        // createdAt se pone por defecto en la base de datos
         conversationDao.save(conv);
     }
 
@@ -169,16 +161,48 @@ public class AppLogicImpl {
         return grpcClient.getLastResponse();
     }
 
+    public List<Conversation> getUserConversations(String userId) {
+        // Devuelve la lista completa de objetos Conversation
+        return conversationDao.findByUserId(userId);
+    }
+
+    public boolean deleteUserConversation(String userId, String dialogueId) {
+        return conversationDao.deleteByUserIdAndDialogueId(userId, dialogueId);
+    }
+
     public Optional<User> checkLogin(String email, String pass) {
         Optional<User> u = dao.getUserByEmail(email);
 
         if (u.isPresent()) {
             String hashed_pass = UserUtils.md5pass(pass);
             if (hashed_pass.equals(u.get().getPassword_hash())) {
+                // Incrementar visitas
+                dao.incrementVisits(u.get().getId());
+                // Actualizar el objeto User con el nuevo número de visitas
+                u.get().setVisits(u.get().getVisits() + 1);
                 return u;
             }
         }
-
         return Optional.empty();
+    }
+
+    // Devuelve el número total de usuarios registrados
+    public int getTotalUsers() {
+        return dao.countUsers();
+    }
+
+    // Devuelve el número total de conversaciones en la base de datos
+    public int getTotalConversations() {
+        return conversationDao.countConversations();
+    }
+
+    // Devuelve el número de visitas del usuario
+    public int getUserVisits(String userId) {
+        return dao.getUserVisits(userId);
+    }
+
+    // Devuelve el número de conversaciones del usuario
+    public int getUserConversationsCount(String userId) {
+        return conversationDao.countConversationsByUser(userId);
     }
 }

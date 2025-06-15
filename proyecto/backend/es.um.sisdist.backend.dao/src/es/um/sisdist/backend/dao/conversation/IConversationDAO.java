@@ -9,4 +9,11 @@ public interface IConversationDAO {
     List<Conversation> findByUserId(String userId);
 
     Conversation findById(int id);
+
+    boolean deleteByUserIdAndDialogueId(String userId, String dialogueId);
+
+    int countConversations();
+
+    int countConversationsByUser(String userId);
+
 }

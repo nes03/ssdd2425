@@ -3,31 +3,19 @@ package es.um.sisdist.backend.dao.models;
 import java.sql.Timestamp;
 
 public class Conversation {
-    // private int id;
     private String dialogueId;
     private String userId;
-    private String prompt;
-    private String response;
-    private Timestamp createdAt;
-
     private String dname;
     private String status; // 'READY', 'BUSY', 'FINISHED'
-    private String dialogue;
+    private String dialogue; // JSON o String según tu uso
+    private Timestamp createdAt;
 
     public Conversation() {
     }
 
-    // public int getId() {
-    // return id;
-    // }
-
     public String getDialogueId() {
         return dialogueId;
     }
-
-    // public void setId(int id) {
-    // this.id = id;
-    // }
 
     public void setDialogueId(String dialogueId) {
         this.dialogueId = dialogueId;
@@ -39,30 +27,6 @@ public class Conversation {
 
     public void setUserId(String userId) {
         this.userId = userId;
-    }
-
-    public String getPrompt() {
-        return prompt;
-    }
-
-    public void setPrompt(String prompt) {
-        this.prompt = prompt;
-    }
-
-    public String getResponse() {
-        return response;
-    }
-
-    public void setResponse(String response) {
-        this.response = response;
-    }
-
-    public Timestamp getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Timestamp createdAt) {
-        this.createdAt = createdAt;
     }
 
     public String getDname() {
@@ -87,5 +51,13 @@ public class Conversation {
 
     public void setDialogue(String dialogue) {
         this.dialogue = dialogue;
+    }
+
+    public String getCreatedAt() {
+        return createdAt != null ? createdAt.toString() : null;
+    }
+
+    public void setCreatedAt(Timestamp createdAt) {
+        this.createdAt = createdAt;
     }
 }

@@ -101,4 +101,41 @@ public class SQLUserDAO implements IUserDAO {
             }
         }
     }
+
+    public void incrementVisits(String userId) {
+        try (PreparedStatement stm = conn.get().prepareStatement(
+                "UPDATE users SET visits = visits + 1 WHERE id = ?")) {
+            stm.setString(1, userId);
+            stm.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Cuenta usuarios
+    @Override
+    public int countUsers() {
+        try (PreparedStatement stm = conn.get().prepareStatement("SELECT COUNT(*) FROM users")) {
+            ResultSet rs = stm.executeQuery();
+            if (rs.next())
+                return rs.getInt(1);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    // Obtiene visitas de un usuario
+    @Override
+    public int getUserVisits(String userId) {
+        try (PreparedStatement stm = conn.get().prepareStatement("SELECT visits FROM users WHERE id = ?")) {
+            stm.setString(1, userId);
+            ResultSet rs = stm.executeQuery();
+            if (rs.next())
+                return rs.getInt(1);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
 }

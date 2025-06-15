@@ -11,6 +11,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import com.google.gson.JsonObject;
 
 @Path("/prompt")
 public class PromptEndpoints {
@@ -41,31 +42,22 @@ public class PromptEndpoints {
     @Produces(MediaType.APPLICATION_JSON)
     public Response handlePrompt(PromptRequest request) {
         try {
-            // Enviar el prompt y esperar la respuesta (manejado internamente)
-
-            // impl.fetchPromptResponse(request.getPrompt());
-            // String dialogueId = impl.fetchPromptResponse(request.getPrompt());
-
-            // Ahora la respuesta debería estar disponible
-            /*
-             * String response = impl.getLastResponse_grpc();
-             * if (response == null || response.isEmpty()) {
-             * return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-             * .entity("La respuesta aún está siendo procesada o ha fallado.")
-             * .build();
-             * }
-             * String userId = request.getUserId(); // Momentaneo, tenemos que poner UserId
-             * de alguna forma
-             * impl.saveConversation(userId, dialogueId, request.getPrompt(), response);
-             * return Response.ok(new PromptResponse(response)).build(); // Devolver la
-             * respuesta
-             */
+            // Procesar el prompt y obtener la respuesta
             String response = impl.fetchPromptResponseSync(request.getPrompt());
 
-            String userId = request.getUserId(); // Usa el userId que recibes en el JSON
-            System.out.println("UserId recibido en backend: " + userId);
-            String dialogueId = java.util.UUID.randomUUID().toString(); // Genera un dialogueId único
-            impl.saveConversation(userId, dialogueId, request.getPrompt(), response);
+            String userId = request.getUserId();
+            String dialogueId = java.util.UUID.randomUUID().toString();
+            String dname = request.getPrompt();
+            String status = "READY";
+
+            // Guardar prompt y respuesta como JSON en el campo dialogue
+            JsonObject dialogueJson = new JsonObject();
+            dialogueJson.addProperty("prompt", request.getPrompt());
+            dialogueJson.addProperty("answer", response);
+
+            String dialogue = dialogueJson.toString();
+
+            impl.saveConversation(userId, dialogueId, dname, status, dialogue);
 
             return Response.ok(new PromptResponse(response)).build();
         } catch (Exception e) {

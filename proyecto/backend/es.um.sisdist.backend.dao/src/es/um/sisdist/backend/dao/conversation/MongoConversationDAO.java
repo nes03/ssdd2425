@@ -69,4 +69,20 @@ public class MongoConversationDAO implements IConversationDAO {
         c.setCreatedAt(doc.get("created_at", Timestamp.class)); // Puede necesitar conversión
         return c;
     }
+
+    @Override
+    public boolean deleteByUserIdAndDialogueId(String userId, String dialogueId) {
+        throw new UnsupportedOperationException("Not implemented for MongoConversationDAO");
+    }
+
+    @Override
+    public int countConversationsByUser(String userId) {
+        // Implementación real si usas Mongo, si no, devuelve 0 para compilar
+        return 0;
+    }
+
+    @Override
+    public int countConversations() {
+        return (int) conversations.countDocuments();
+    }
 }

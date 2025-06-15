@@ -1,10 +1,36 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2>Administración de Logs</h2>
-    <ul class="list-group">
-        <li class="list-group-item">Conversación 1 <button class="btn btn-danger btn-sm float-end">Eliminar</button></li>
-        <li class="list-group-item">Conversación 2 <button class="btn btn-danger btn-sm float-end">Eliminar</button></li>
-    </ul>
-</div>
+<h2>Mis conversaciones</h2>
+{% if conversaciones %}
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Diálogo</th>
+      <th>Fecha</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for conv in conversaciones %}
+    <tr>
+      <td>{{ conv.dname }}</td>
+      <td>
+        <b>Prompt:</b> {{ conv.dialogue_obj.prompt }}<br>
+        <b>Respuesta:</b> {{ conv.dialogue_obj.answer }}
+      </td>
+      <td>{{ conv.createdAt|datetimeformat }}</td>
+      <td>
+        <form method="post" style="display:inline;">
+          <input type="hidden" name="dialogue_id" value="{{ conv.dialogueId }}">
+          <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar conversación?')">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+  <p>No tienes conversaciones!</p>
+{% endif %}
 {% endblock %}
